@@ -29,6 +29,7 @@ const TABS: Array<{ id: StatusTab; label: string }> = [
   { id: 'ALL', label: 'الكل' },
   { id: 'CONFIRMED', label: 'مؤكدة' },
   { id: 'CANCELLED', label: 'ملغاة' },
+  { id: 'CHANGED', label: 'مُعدّلة' },
 ];
 
 const RANGES: Array<{ id: RangePreset; label: string }> = [

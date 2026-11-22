@@ -2,6 +2,7 @@ import * as React from 'react';
 import { cn } from '../../lib/utils';
 import { SearchInput } from '../../components/ui/Input';
 import { useAuth } from '../../features/auth/auth-context';
+import { NotificationsBell } from '../../features/notifications/NotificationsBell';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -90,41 +91,7 @@ export const Topbar: React.FC<TopbarProps> = ({
           <span>اليوم: 24 أكتوبر 2024</span>
         </div>
 
-        {/* Notifications Dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              aria-label="التنبيهات والإشعارات"
-              className="relative p-2 rounded-lg bg-surface-container-lowest text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors shadow-xs border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-secondary/40"
-            >
-              <span className="material-symbols-outlined text-[20px]">notifications</span>
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary-container ring-2 ring-surface-container-lowest" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80 p-2 text-right">
-            <div className="flex items-center justify-between pb-2 mb-2 border-b border-outline-variant/30">
-              <span className="text-xs font-bold text-on-surface">الإشعارات والتنبيهات</span>
-              <span className="text-[10px] bg-primary-fixed text-on-primary-fixed font-bold px-2 py-0.5 rounded-full">
-                4 جديدة
-              </span>
-            </div>
-            <div className="space-y-1 text-xs">
-              <div className="p-2 rounded-lg bg-surface-container hover:bg-surface-container-high transition-colors cursor-pointer">
-                <span className="font-semibold block text-primary">تحقق بنكي معلق</span>
-                <span className="text-on-surface-variant text-[11px]">
-                  4 إيداعات جديدة بانتظار المطابقة والاعتماد
-                </span>
-              </div>
-              <div className="p-2 rounded-lg hover:bg-surface-container-high transition-colors cursor-pointer">
-                <span className="font-semibold block text-secondary">حركة أسطول نشطة</span>
-                <span className="text-on-surface-variant text-[11px]">
-                  انطلاق الرحلة #TRIP-983 نحو مروي
-                </span>
-              </div>
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <NotificationsBell />
 
         {/* User Avatar with Profile Dropdown */}
         <DropdownMenu>

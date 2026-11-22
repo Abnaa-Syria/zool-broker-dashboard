@@ -44,3 +44,36 @@ export function bookingReference(b: { bookingRef: string | null; id: string }): 
 export function routeLabel(origin: string, destination: string): string {
   return `⁨${origin}⁩ ← ⁨${destination}⁩`;
 }
+
+export function ticketStatusLabel(status: string): string {
+  switch (status) {
+    case 'CONFIRMED':
+      return 'سارية';
+    case 'CANCELLED':
+      return 'ملغاة';
+    case 'CHANGED':
+      return 'مستبدلة بحجز آخر';
+    default:
+      return status;
+  }
+}
+
+export function boardingStatusLabel(status: string | null | undefined): { label: string; variant: NonNullable<BadgeProps['variant']> } {
+  switch (status) {
+    case 'BOARDED':
+      return { label: 'صعد الحافلة', variant: 'success' };
+    case 'NO_SHOW':
+      return { label: 'لم يحضر', variant: 'error' };
+    case 'PENDING':
+    case null:
+    case undefined:
+      return { label: 'لم يصعد بعد', variant: 'neutral' };
+    default:
+      return { label: status, variant: 'neutral' };
+  }
+}
+
+/** QR content: the server-signed boarding code; the ticket number only when there is none (old data). */
+export function ticketQrValue(ticketNumber: string, ...payloads: Array<string | null | undefined>): string {
+  return payloads.find((p): p is string => typeof p === 'string' && p.length > 0) ?? ticketNumber;
+}

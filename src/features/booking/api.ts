@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api/client';
 import type { ConfirmResult } from '../bookings/types';
-import type { AssignedCarrier, BookingQuote, BrokerTrip, BrokerTripDetail, HoldsResult, PassengerInput, StationRef } from './types';
+import type { AssignedCarrier, BookingQuote, BrokerTrip, BrokerTripDetail, HoldsResult, PassengerInput, ReturnTripInput, StationRef } from './types';
 
 export type TripSearch = { fromCityId: string; toCityId: string; date: string; passengers: number };
 
@@ -50,9 +50,10 @@ export const bookingApi = {
   hold: (tripId: string, seatIds: string[]) =>
     api.post<HoldsResult>(`/broker/trips/${tripId}/holds`, { mode: 'MANUAL', seatIds }).then((r) => r.data),
   release: (holdId: string) => api.delete<unknown>(`/broker/holds/${holdId}`),
-  quote: (body: { tripId: string; seatIds: string[]; passengers: PassengerInput[] }) =>
+  /** `returnTrip` makes it a round trip (D-RT-01): the quote then carries `returnLeg` and combined totals. */
+  quote: (body: { tripId: string; seatIds: string[]; passengers: PassengerInput[]; returnTrip?: ReturnTripInput }) =>
     api.post<BookingQuote>('/broker/bookings/quote', body).then((r) => r.data),
-  confirm: (body: { tripId: string; seatIds: string[]; passengers: PassengerInput[]; idempotencyKey: string }) =>
+  confirm: (body: { tripId: string; seatIds: string[]; passengers: PassengerInput[]; returnTrip?: ReturnTripInput; idempotencyKey: string }) =>
     api.post<ConfirmResult>('/broker/bookings/confirm', body).then((r) => r.data),
 };
 

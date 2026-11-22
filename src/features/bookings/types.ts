@@ -1,6 +1,10 @@
 /** Shapes of the broker bookings API (zool-go-backend `bookings.dto.ts`, `ticket-document.ts`). */
+import type { TripPoint } from '../booking/types';
 
-export type BookingStatus = 'CONFIRMED' | 'CANCELLED' | (string & {});
+/** CHANGED: the booking was moved to another trip (D-CHG-01); its tickets are void, the new booking holds them. */
+export type BookingStatus = 'CONFIRMED' | 'CANCELLED' | 'CHANGED' | (string & {});
+
+export type BoardingStatus = 'PENDING' | 'BOARDED' | 'NO_SHOW' | (string & {});
 
 export type BookingTicket = {
   id: string;
@@ -10,6 +14,9 @@ export type BookingTicket = {
   seatLabel: string | null;
   passengerId: string;
   passengerName: string | null;
+  boardingStatus: BoardingStatus;
+  /** Server-signed boarding code drawn as the QR; null unless the booking and the ticket are confirmed. */
+  qrPayload: string | null;
 };
 
 export type Booking = {
@@ -35,13 +42,17 @@ export type Booking = {
   confirmedAt: string | null;
   cancelledAt: string | null;
   cancelReason: string | null;
+  /** D-CHG-01: on a CHANGED booking, the booking that replaced it */
+  replacedByBookingId?: string | null;
+  /** D-CHG-01: on a booking created by a trip change, the old booking */
+  replacesBookingId?: string | null;
   createdAt: string;
   passengers: Array<{ id: string; fullName: string; phone: string | null; idNumber: string | null }>;
   tickets: BookingTicket[];
 };
 
-/** POST /broker/bookings/confirm */
-export type ConfirmResult = { booking: Booking; balanceAfterMinor: number };
+/** POST /broker/bookings/confirm; `returnBooking` is set for a round trip (D-RT-01). */
+export type ConfirmResult = { booking: Booking; returnBooking?: Booking | null; balanceAfterMinor: number };
 
 /** POST /broker/bookings/:id/cancel */
 export type CancelResult = {
@@ -57,6 +68,8 @@ export type TicketDocumentPassenger = {
   seatLabel: string;
   ticketNumber: string;
   fareAmountMinor: number;
+  /** Signed boarding code (same as the booking ticket's `qrPayload`). */
+  qrPayload?: string | null;
 };
 
 export type TicketDocument = {
@@ -79,3 +92,49 @@ export type DispatchResult = {
   pdfContentType: 'application/pdf';
   attemptId: string;
 };
+
+// ---------------------------------------------------------------- D-CHG-01 booking changes
+
+/**
+ * GET /broker/bookings/:id/change-options item: the app trip card (`toTripCardView`) of another trip of
+ * the same carrier and cities + `priceDifferenceMinor` (new trip total − current booking total, before the fee).
+ */
+export type ChangeOption = {
+  id: string;
+  tripNumber: string | null;
+  status: string;
+  carrier: { id: string; name: string; legalName: string; logoUrl: string | null };
+  serviceClass: 'STANDARD' | 'VIP';
+  departureAt: string;
+  arrivalAt: string | null;
+  durationMinutes: number | null;
+  origin: TripPoint;
+  destination: TripPoint;
+  isDirect: boolean;
+  stopsCount: number;
+  seatsAvailable: number;
+  seatsTotal: number;
+  priceMinor: number;
+  priceDifferenceMinor: number;
+};
+
+/** POST /broker/bookings/:id/change-quote */
+export type ChangeQuote = {
+  bookingId: string;
+  newTrip: Omit<ChangeOption, 'priceDifferenceMinor'>;
+  /** New seat labels in label order (passenger i ↔ seats[i], same order as the current tickets). */
+  seats: string[];
+  oldTotalMinor: number;
+  newTotalMinor: number;
+  changeFeeMinor: number;
+  priceDifferenceMinor: number;
+  /** Debited from the office wallet now. */
+  payMinor: number;
+  /** Credited to the office wallet now. */
+  refundMinor: number;
+  commission?: { percent: number; newCommissionMinor: number };
+  currency: 'SDG';
+};
+
+/** POST /broker/bookings/:id/change → the NEW booking (the old one becomes CHANGED). */
+export type ChangeResult = { booking: Booking; replayed: boolean };

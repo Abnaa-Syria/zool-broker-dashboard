@@ -10,29 +10,37 @@ import type { ConfirmResult } from '../bookings/types';
 
 export const SuccessStep: React.FC<{ result: ConfirmResult; onNew: () => void }> = ({ result, onNew }) => {
   const b = result.booking;
+  const rb = result.returnBooking ?? null;
   return (
     <div className="space-y-space-md max-w-4xl">
       <Card className="flex flex-wrap items-center justify-between gap-space-md border-[#BBF7D0] bg-[#F0FDF4]">
         <div className="flex items-center gap-3">
           <span className="material-symbols-outlined text-[36px] text-[#15803D]">check_circle</span>
           <div>
-            <div className="text-sm text-on-surface-variant">تم تأكيد الحجز</div>
+            <div className="text-sm text-on-surface-variant">{rb ? 'تم تأكيد حجز الذهاب والعودة' : 'تم تأكيد الحجز'}</div>
             <div className="text-2xl font-extrabold font-mono" dir="ltr">
               {bookingReference(b)}
+              {rb ? ` + ${bookingReference(rb)}` : ''}
             </div>
             <div className="text-xs text-on-surface-variant">
+              {rb ? 'الذهاب: ' : ''}
               {b.trip.company.name} • {routeLabel(b.trip.origin, b.trip.destination)} • {formatDateTime(b.trip.departureAt)}
             </div>
+            {rb && (
+              <div className="text-xs text-on-surface-variant">
+                العودة: {rb.trip.company.name} • {routeLabel(rb.trip.origin, rb.trip.destination)} • {formatDateTime(rb.trip.departureAt)}
+              </div>
+            )}
           </div>
         </div>
         <dl className="text-sm space-y-1">
           <div className="flex justify-between gap-6">
             <dt className="text-on-surface-variant">خُصم من المحفظة</dt>
-            <dd className="font-bold tabular-nums">{formatSdg(b.totalAmountMinor)}</dd>
+            <dd className="font-bold tabular-nums">{formatSdg(b.totalAmountMinor + (rb?.totalAmountMinor ?? 0))}</dd>
           </div>
           <div className="flex justify-between gap-6">
             <dt className="text-on-surface-variant">عمولتك المكتسبة</dt>
-            <dd className="tabular-nums">{formatSdg(b.commissionAmountMinor)}</dd>
+            <dd className="tabular-nums">{formatSdg(b.commissionAmountMinor + (rb?.commissionAmountMinor ?? 0))}</dd>
           </div>
           <div className="flex justify-between gap-6">
             <dt className="text-on-surface-variant">رصيد المحفظة الآن</dt>
@@ -41,7 +49,14 @@ export const SuccessStep: React.FC<{ result: ConfirmResult; onNew: () => void }>
         </dl>
       </Card>
 
+      {rb && <h2 className="font-bold text-on-surface">تذاكر الذهاب — {bookingReference(b)}</h2>}
       <BookingTickets booking={b} canAct />
+      {rb && (
+        <>
+          <h2 className="font-bold text-on-surface">تذاكر العودة — {bookingReference(rb)}</h2>
+          <BookingTickets booking={rb} canAct />
+        </>
+      )}
 
       <div className="flex flex-wrap gap-2">
         <Button icon="add_circle" onClick={onNew}>
@@ -51,8 +66,16 @@ export const SuccessStep: React.FC<{ result: ConfirmResult; onNew: () => void }>
           to={`/bookings/${b.id}`}
           className="inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-outline-variant text-sm hover:bg-surface-container"
         >
-          تفاصيل الحجز
+          {rb ? 'تفاصيل حجز الذهاب' : 'تفاصيل الحجز'}
         </Link>
+        {rb && (
+          <Link
+            to={`/bookings/${rb.id}`}
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-outline-variant text-sm hover:bg-surface-container"
+          >
+            تفاصيل حجز العودة
+          </Link>
+        )}
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { errorMessage } from '../../lib/api/errors';
 import { dispatchTickets, downloadTicketPdf, saveBase64Pdf } from './api';
-import { bookingReference } from './labels';
+import { boardingStatusLabel, bookingReference, ticketStatusLabel } from './labels';
 import { TicketPreviewModal } from './TicketPreviewModal';
 import type { Booking } from './types';
 
@@ -20,6 +20,7 @@ export const BookingTickets: React.FC<{ booking: Booking; canAct: boolean }> = (
   const dispatch = useMutation({ mutationFn: () => dispatchTickets(booking.id) });
   const ref = bookingReference(booking);
   const printable = canAct && booking.status === 'CONFIRMED';
+  const qrPayloads = React.useMemo(() => Object.fromEntries(booking.tickets.map((t) => [t.ticketNumber, t.qrPayload])), [booking.tickets]);
 
   const openPreview = (ticketNumber?: string) => {
     setInitialTicket(ticketNumber);
@@ -72,9 +73,13 @@ export const BookingTickets: React.FC<{ booking: Booking; canAct: boolean }> = (
                 <div className="text-sm font-semibold truncate">{t.passengerName ?? '—'}</div>
                 <div className="text-xs font-mono text-on-surface-variant" dir="ltr">{t.ticketNumber}</div>
               </div>
-              {t.status !== 'CONFIRMED' && (
-                <Badge size="sm" variant="error">
-                  {t.status === 'CANCELLED' ? 'ملغاة' : t.status}
+              {t.status !== 'CONFIRMED' ? (
+                <Badge size="sm" variant={t.status === 'CHANGED' ? 'info' : 'error'}>
+                  {ticketStatusLabel(t.status)}
+                </Badge>
+              ) : (
+                <Badge size="sm" variant={boardingStatusLabel(t.boardingStatus).variant} title="حالة الصعود">
+                  {boardingStatusLabel(t.boardingStatus).label}
                 </Badge>
               )}
             </div>
@@ -101,6 +106,7 @@ export const BookingTickets: React.FC<{ booking: Booking; canAct: boolean }> = (
         loading={dispatch.isPending}
         error={dispatch.isError ? errorMessage(dispatch.error) : null}
         onRetry={() => dispatch.mutate()}
+        qrPayloads={qrPayloads}
       />
     </section>
   );

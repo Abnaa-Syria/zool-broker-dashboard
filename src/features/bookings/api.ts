@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, downloadFile } from '../../lib/api/client';
 import type { BookingsQuery } from './filters';
-import type { Booking, CancelResult, DispatchResult } from './types';
+import type { Booking, CancelResult, ChangeOption, ChangeQuote, ChangeResult, DispatchResult } from './types';
 
 export function useBookings(query: BookingsQuery) {
   return useQuery({
@@ -70,3 +70,34 @@ export function saveBase64Pdf(base64: string, filename: string): void {
   a.remove();
   URL.revokeObjectURL(href);
 }
+
+// ---------------------------------------------------------------- D-CHG-01 booking changes (broker.book)
+
+/** POST /broker/bookings/:id/change-seat — same trip, free; returns the updated booking. */
+export function useChangeSeat(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { fromSeatLabel: string; toSeatLabel: string }) => api.post<Booking>(`/broker/bookings/${id}/change-seat`, body).then((r) => r.data),
+    onSuccess: (booking) => {
+      qc.setQueryData(['broker-booking', id], booking);
+      void qc.invalidateQueries({ queryKey: ['broker-trip', booking.trip.id] });
+      void qc.invalidateQueries({ queryKey: ['broker-bookings'] });
+    },
+  });
+}
+
+/** GET /broker/bookings/:id/change-options?date= — other trips of the same carrier and cities that day. */
+export function useChangeOptions(id: string, date: string) {
+  return useQuery({
+    queryKey: ['broker-change-options', id, date],
+    enabled: Boolean(id && date),
+    retry: false,
+    queryFn: ({ signal }) => api.get<ChangeOption[]>(`/broker/bookings/${id}/change-options`, { date }, signal).then((r) => r.data),
+  });
+}
+
+export const changeApi = {
+  quote: (id: string, body: { tripId: string; seatIds: string[] }) => api.post<ChangeQuote>(`/broker/bookings/${id}/change-quote`, body).then((r) => r.data),
+  change: (id: string, body: { tripId: string; seatIds: string[]; idempotencyKey: string }) =>
+    api.post<ChangeResult>(`/broker/bookings/${id}/change`, body).then((r) => r.data),
+};

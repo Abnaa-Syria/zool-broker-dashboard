@@ -8,6 +8,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { errorMessage } from '../../lib/api/errors';
 import { formatSdg } from '../../lib/money';
 import { cn } from '../../lib/utils';
+import { quoteCommission, quoteTotal, withinCeiling } from './roundTrip';
 import { formatPercent } from './totals';
 import type { BookingQuote, PassengerInput, TripSeat } from './types';
 
@@ -21,12 +22,17 @@ export const ReviewStep: React.FC<{
   quoteError: unknown;
   onRetryQuote: () => void;
   seats: TripSeat[];
+  /** Round trip: return-leg seats (passenger i ↔ returnSeats[i]). */
+  returnSeats?: TripSeat[];
   passengers: PassengerInput[];
   onBack: () => void;
   onConfirm: () => void;
   confirming: boolean;
   alert: React.ReactNode;
-}> = ({ quote, quoteLoading, quoteError, onRetryQuote, seats, passengers, onBack, onConfirm, confirming, alert }) => {
+}> = ({ quote, quoteLoading, quoteError, onRetryQuote, seats, returnSeats, passengers, onBack, onConfirm, confirming, alert }) => {
+  const back = quote?.returnLeg;
+  const ceilingOk = quote ? withinCeiling(quote) : false;
+  const tickets = quote ? quote.seatCount + (back?.seatCount ?? 0) : 0;
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-space-md items-start">
       <Card className="lg:col-span-3 space-y-space-sm">
@@ -39,9 +45,15 @@ export const ReviewStep: React.FC<{
                 <div className="text-xs text-on-surface-variant" dir="ltr">
                   {passengers[i]?.phone}
                   {passengers[i]?.idNumber ? ` • ${passengers[i]?.idNumber}` : ''}
+                  {passengers[i]?.gender ? ` • ${passengers[i]?.gender === 'FEMALE' ? 'أنثى' : 'ذكر'}` : ''}
                 </div>
               </div>
-              <Badge variant="info">مقعد {seat.label}</Badge>
+              <div className="flex flex-wrap justify-end gap-1">
+                <Badge variant="info">
+                  {returnSeats ? 'ذهاب ' : ''}مقعد {seat.label}
+                </Badge>
+                {returnSeats?.[i] && <Badge variant="info">عودة مقعد {returnSeats[i].label}</Badge>}
+              </div>
             </li>
           ))}
         </ul>
@@ -56,11 +68,18 @@ export const ReviewStep: React.FC<{
         ) : quote ? (
           <>
             <dl className="space-y-2 text-sm">
-              <Line label={`سعر التذكرة × ${quote.seatCount}`} value={`${formatSdg(quote.unitPriceMinor)} × ${quote.seatCount}`} />
-              <Line label="قيمة التذاكر الإجمالية (تُخصم من المحفظة)" value={formatSdg(quote.totalAmountMinor)} strong />
+              {back ? (
+                <>
+                  <Line label={`الذهاب: ${formatSdg(quote.unitPriceMinor)} × ${quote.seatCount}`} value={formatSdg(quote.totalAmountMinor)} />
+                  <Line label={`العودة: ${formatSdg(back.unitPriceMinor)} × ${back.seatCount}`} value={formatSdg(back.totalAmountMinor)} />
+                </>
+              ) : (
+                <Line label={`سعر التذكرة × ${quote.seatCount}`} value={`${formatSdg(quote.unitPriceMinor)} × ${quote.seatCount}`} />
+              )}
+              <Line label="قيمة التذاكر الإجمالية (تُخصم من المحفظة)" value={formatSdg(quoteTotal(quote))} strong />
               <Line
-                label={`عمولتك المكتسبة (${formatPercent(quote.commissionPercent)})`}
-                value={formatSdg(quote.expectedCommissionMinor)}
+                label={back ? 'عمولتك المكتسبة (الرحلتان)' : `عمولتك المكتسبة (${formatPercent(quote.commissionPercent)})`}
+                value={formatSdg(quoteCommission(quote))}
                 hint="تُضاف لمستحقاتك وتُسوّى لاحقًا من الإدارة؛ لا تُخصم من المبلغ."
               />
               <div className="border-t border-outline-variant/40 pt-2 space-y-2">
@@ -82,9 +101,9 @@ export const ReviewStep: React.FC<{
                 ثم عد إلى هذه الصفحة قبل انتهاء المهلة (يُحدَّث الملخص تلقائيًا).
               </p>
             )}
-            {!quote.exposure.withinCeiling && (
+            {!ceilingOk && (
               <p className="text-xs text-error">
-                سقف تذاكر المكتب اليومي: {quote.exposure.ceiling} — المستخدم اليوم {quote.exposure.usedToday}. لا يمكن إصدار {quote.seatCount} تذكرة إضافية اليوم.
+                سقف تذاكر المكتب اليومي: {quote.exposure.ceiling} — المستخدم اليوم {quote.exposure.usedToday}. لا يمكن إصدار {tickets} تذكرة إضافية اليوم.
               </p>
             )}
           </>
@@ -98,9 +117,9 @@ export const ReviewStep: React.FC<{
             icon="verified"
             onClick={onConfirm}
             isLoading={confirming}
-            disabled={!quote || quoteLoading || !quote.sufficientBalance || !quote.exposure.withinCeiling}
+            disabled={!quote || quoteLoading || !quote.sufficientBalance || !ceilingOk}
           >
-            تأكيد الحجز والدفع من المحفظة
+            {back ? 'تأكيد حجز الذهاب والعودة والدفع من المحفظة' : 'تأكيد الحجز والدفع من المحفظة'}
           </Button>
           <Button variant="outline" onClick={onBack} disabled={confirming}>
             تعديل بيانات المسافرين

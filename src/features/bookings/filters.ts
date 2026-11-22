@@ -1,7 +1,7 @@
 import { lastDays, sudanDate } from '../../lib/dates';
 import type { Booking } from './types';
 
-export type StatusTab = 'ALL' | 'CONFIRMED' | 'CANCELLED';
+export type StatusTab = 'ALL' | 'CONFIRMED' | 'CANCELLED' | 'CHANGED';
 export type RangePreset = 'all' | 'today' | '7days' | '30days' | 'custom';
 
 export type BookingFilters = {
@@ -29,7 +29,7 @@ export const DEFAULT_FILTERS: BookingFilters = {
 export type BookingsQuery = {
   page: number;
   pageSize: number;
-  status?: 'CONFIRMED' | 'CANCELLED';
+  status?: 'CONFIRMED' | 'CANCELLED' | 'CHANGED';
   from?: string;
   to?: string;
   employeeId?: string;
@@ -88,7 +88,7 @@ export function matchesSearch(booking: Booking, term: string): boolean {
   return haystack.some((v) => v.toLowerCase().includes(q));
 }
 
-const TABS: readonly StatusTab[] = ['ALL', 'CONFIRMED', 'CANCELLED'];
+const TABS: readonly StatusTab[] = ['ALL', 'CONFIRMED', 'CANCELLED', 'CHANGED'];
 const RANGES: readonly RangePreset[] = ['all', 'today', '7days', '30days', 'custom'];
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
 

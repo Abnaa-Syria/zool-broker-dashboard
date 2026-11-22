@@ -23,6 +23,15 @@ Dev seed accounts: office manager `+249900000101`, clerk `+249900000102` (office
 - Access token in memory; refresh token is an HttpOnly cookie scoped to `/api/v1/broker/auth`, restored on reload; 401 → one shared refresh → retry (`src/lib/api/client.ts`).
 - Employee flags → permissions: `broker.book`, `broker.wallet.topup`, `broker.reports.view`, `broker.staff.manage`. Managers also pass `broker.reports.view` (reports, commissions), exactly like the API. `useAuth().can(...)` mirrors this.
 
+## Booking features
+
+- **Booking flow** (`/booking/new`, `src/features/booking`): search → trip → seats (hold) → passengers → review (quote) → confirm → tickets. Holds are released on back / cancel / leaving the page; confirm sends one idempotency key per attempt.
+- **Round trip (D-RT-01)**: trip type toggle in the search. Outbound trip + seats, then the return trip (cities swapped, return date, only trips leaving after the outbound arrives) + the same number of seats, one passenger list for both legs (passenger i ↔ seat i on each leg). Quote/confirm send `returnTrip`; confirm returns `booking` + `returnBooking`. Rules in `roundTrip.ts`.
+- **Women-only seats**: seats with `isWomenOnly` (pink ring). A passenger in such a seat (on any leg) must have gender «أنثى»; gender is optional elsewhere and sent as `gender` (`passengers.ts`). API error `WOMEN_ONLY_SEAT`.
+- **Tickets**: the thermal ticket QR encodes the server-signed `qrPayload` (ticket number only as a fallback for old data). Booking detail shows each ticket's boarding status (PENDING / BOARDED / NO_SHOW).
+- **Modify booking (D-CHG-01)**, from booking detail for CONFIRMED bookings with `broker.book`: change seat on the same trip (modal with the seat map), or change trip (`/bookings/:id/change`: options for a day → seats (held) → change quote → confirm). The new booking opens after the change; the old one becomes `CHANGED` («مُعدّل», also a filter tab in the bookings list).
+- **Notifications**: header bell with the unread count (polled every 60 s), feed, mark one / all as read (`src/features/notifications`).
+
 ## Scripts
 
 | Script | Purpose |

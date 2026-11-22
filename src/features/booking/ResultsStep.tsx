@@ -9,6 +9,7 @@ import { formatSdg } from '../../lib/money';
 import { cn } from '../../lib/utils';
 import { useCities, useTripSearch, type TripSearch } from './api';
 import { pointLabel } from './labels';
+import { filterReturnTrips, returnNotBefore } from './roundTrip';
 import { formatPercent } from './totals';
 import { routeLabel } from '../bookings/labels';
 import type { BrokerTrip } from './types';
@@ -17,10 +18,15 @@ export const ResultsStep: React.FC<{
   search: TripSearch;
   onEdit: () => void;
   onPick: (trip: BrokerTrip) => void;
-}> = ({ search, onEdit, onPick }) => {
+  /** Round trip, return leg: only trips leaving after this (outbound) trip arrives can be picked. */
+  outbound?: BrokerTrip;
+  /** Trip picked earlier on this leg (highlighted). */
+  pickedId?: string;
+}> = ({ search, onEdit, onPick, outbound, pickedId }) => {
   const [page, setPage] = React.useState(1);
   const query = useTripSearch(search, page);
-  const trips = query.data?.data ?? [];
+  const loaded = query.data?.data ?? [];
+  const { trips, hidden } = outbound ? filterReturnTrips(outbound, loaded) : { trips: loaded, hidden: 0 };
   const meta = query.data?.meta;
   const cities = useCities();
   const cityName = (id: string) => cities.data?.find((c) => c.id === id)?.nameAr ?? 'كل المدن';
@@ -30,16 +36,25 @@ export const ResultsStep: React.FC<{
     <div className="space-y-space-md">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="font-bold text-on-surface">{route}</h2>
+          <h2 className="font-bold text-on-surface">
+            {outbound ? 'رحلة العودة: ' : ''}
+            {route}
+          </h2>
           <p className="text-xs text-on-surface-variant">
             {search.date || 'كل التواريخ القادمة'} • {search.passengers} مسافر
             {meta ? ` • ${meta.total} رحلة` : ''}
           </p>
         </div>
-        <Button variant="outline" size="sm" icon="edit" onClick={onEdit}>
-          تعديل البحث
+        <Button variant="outline" size="sm" icon={outbound ? 'arrow_forward' : 'edit'} onClick={onEdit}>
+          {outbound ? 'تغيير مقاعد الذهاب' : 'تعديل البحث'}
         </Button>
       </div>
+      {outbound && (
+        <p className="text-xs text-on-surface-variant">
+          تُعرض فقط الرحلات التي تغادر بعد وصول رحلة الذهاب ({formatDateTime(returnNotBefore(outbound))})
+          {hidden > 0 ? ` — أُخفيت ${hidden} رحلة تغادر قبل ذلك.` : '.'}
+        </p>
+      )}
 
       {query.isLoading ? (
         <div className="space-y-2">
@@ -53,8 +68,12 @@ export const ResultsStep: React.FC<{
         <EmptyState
           icon="directions_bus"
           title="لا توجد رحلات"
-          description="لا توجد رحلات قادمة لشركات النقل المسندة لمكتبك تطابق البحث. جرّب تاريخًا آخر أو اترك المدن فارغة."
-          actionText="تعديل البحث"
+          description={
+            outbound
+              ? 'لا توجد رحلات عودة في هذا التاريخ تغادر بعد وصول رحلة الذهاب. ارجع وغيّر تاريخ العودة.'
+              : 'لا توجد رحلات قادمة لشركات النقل المسندة لمكتبك تطابق البحث. جرّب تاريخًا آخر أو اترك المدن فارغة.'
+          }
+          actionText={outbound ? 'رجوع' : 'تعديل البحث'}
           onAction={onEdit}
         />
       ) : (
@@ -64,7 +83,10 @@ export const ResultsStep: React.FC<{
             return (
               <li
                 key={t.id}
-                className="rounded-xl border border-outline-variant/40 bg-surface-container-lowest p-space-md flex flex-wrap items-center justify-between gap-space-md"
+                className={cn(
+                  'rounded-xl border bg-surface-container-lowest p-space-md flex flex-wrap items-center justify-between gap-space-md',
+                  t.id === pickedId ? 'border-secondary ring-2 ring-secondary/20' : 'border-outline-variant/40',
+                )}
               >
                 <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2">

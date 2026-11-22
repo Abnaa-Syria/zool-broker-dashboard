@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -14,16 +14,26 @@ import { formatSdg } from '../../lib/money';
 import { useAuth } from '../auth/auth-context';
 import { useBooking, useCancelBooking } from './api';
 import { BookingTickets } from './BookingTickets';
-import { bookingReference, routeLabel, bookingStatusLabel, commissionStatusLabel } from './labels';
+import { canChangeBooking } from './change';
+import { ChangeSeatModal } from './ChangeSeatModal';
+import { boardingStatusLabel, bookingReference, routeLabel, bookingStatusLabel, commissionStatusLabel } from './labels';
 import type { Booking, CancelResult } from './types';
 
-/** GET /broker/bookings/:id — details, cancel (refund to wallet), tickets (thermal print + PDF). */
+/**
+ * GET /broker/bookings/:id — details, cancel (refund to wallet), seat / trip change (D-CHG-01),
+ * tickets (thermal print with the signed QR + PDF) and boarding status.
+ */
 export const BookingDetailPage: React.FC = () => {
   const { id } = useParams();
   const query = useBooking(id);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const changedFrom = (location.state as { changedFrom?: string } | null)?.changedFrom;
   const { employee, can, isManager } = useAuth();
   const [cancelOpen, setCancelOpen] = React.useState(false);
   const [cancelled, setCancelled] = React.useState<CancelResult | null>(null);
+  const [seatOpen, setSeatOpen] = React.useState(false);
+  const [seatChanged, setSeatChanged] = React.useState<string | null>(null);
 
   if (query.isLoading) {
     return (
@@ -52,6 +62,7 @@ export const BookingDetailPage: React.FC = () => {
   const status = bookingStatusLabel(b.status);
   const canBook = can('broker.book');
   const canCancel = canBook && b.status === 'CONFIRMED' && (isManager || b.employee?.id === employee?.id);
+  const canChange = canChangeBooking(b, canBook);
 
   return (
     <div className="flex flex-col gap-space-lg pb-space-xl">
@@ -61,14 +72,51 @@ export const BookingDetailPage: React.FC = () => {
         subtitle={`${b.trip.company.name} • ${routeLabel(b.trip.origin, b.trip.destination)}`}
         badge={<Badge variant={status.variant} dot>{status.label}</Badge>}
         actions={
-          canCancel ? (
-            <Button variant="danger" icon="cancel" onClick={() => setCancelOpen(true)}>
-              إلغاء الحجز
-            </Button>
+          canCancel || canChange ? (
+            <div className="flex flex-wrap gap-2">
+              {canChange && (
+                <>
+                  <Button variant="outline" icon="airline_seat_recline_normal" onClick={() => setSeatOpen(true)}>
+                    تغيير المقعد
+                  </Button>
+                  <Button variant="outline" icon="published_with_changes" onClick={() => navigate(`/bookings/${b.id}/change`)}>
+                    تغيير الرحلة
+                  </Button>
+                </>
+              )}
+              {canCancel && (
+                <Button variant="danger" icon="cancel" onClick={() => setCancelOpen(true)}>
+                  إلغاء الحجز
+                </Button>
+              )}
+            </div>
           ) : undefined
         }
         className="mb-0"
       />
+
+      {changedFrom && (
+        <div role="status" className="rounded-lg border border-[#BBF7D0] bg-[#DCFCE7] px-space-md py-2 text-sm text-[#15803D]">
+          تم تعديل الرحلة: هذا هو الحجز الجديد بدلًا من {changedFrom} (أصبح «مُعدّل» وتذاكره ملغاة). اطبع التذاكر الجديدة للمسافرين.
+        </div>
+      )}
+      {seatChanged && (
+        <div role="status" className="rounded-lg border border-[#BBF7D0] bg-[#DCFCE7] px-space-md py-2 text-sm text-[#15803D]">
+          {seatChanged}
+        </div>
+      )}
+      {b.status === 'CHANGED' && (
+        <div role="status" className="rounded-lg border border-secondary/30 bg-surface-container-low px-space-md py-2 text-sm">
+          نُقل هذا الحجز إلى رحلة أخرى وصدر بدلًا منه حجز جديد بتذاكر جديدة؛ تذاكر هذا الحجز لم تعد صالحة للصعود.{' '}
+          {b.replacedByBookingId ? (
+            <Link to={`/bookings/${b.replacedByBookingId}`} className="font-semibold text-secondary underline">
+              فتح الحجز الجديد
+            </Link>
+          ) : (
+            'ابحث عن الحجز الجديد في قائمة الحجوزات باسم المسافر.'
+          )}
+        </div>
+      )}
 
       {cancelled && (
         <div role="status" className="rounded-lg border border-[#BBF7D0] bg-[#DCFCE7] px-space-md py-2 text-sm text-[#15803D]">
@@ -106,7 +154,9 @@ export const BookingDetailPage: React.FC = () => {
         <h2 className="font-bold">المسافرون ({b.passengers.length})</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-space-sm">
           {b.passengers.map((p) => {
-            const seat = b.tickets.find((t) => t.passengerId === p.id)?.seatLabel;
+            const ticket = b.tickets.find((t) => t.passengerId === p.id);
+            const seat = ticket?.seatLabel;
+            const boarding = ticket && ticket.status === 'CONFIRMED' ? boardingStatusLabel(ticket.boardingStatus) : null;
             return (
               <Card key={p.id} variant="flat" className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
@@ -114,7 +164,14 @@ export const BookingDetailPage: React.FC = () => {
                   <div className="text-xs text-on-surface-variant" dir="ltr">{p.phone ?? '—'}</div>
                   {p.idNumber && <div className="text-xs text-on-surface-variant">هوية: {p.idNumber}</div>}
                 </div>
-                {seat && <Badge variant="info">مقعد {seat}</Badge>}
+                <div className="flex flex-col items-end gap-1">
+                  {seat && <Badge variant="info">مقعد {seat}</Badge>}
+                  {boarding && (
+                    <Badge size="sm" variant={boarding.variant} title="حالة الصعود">
+                      {boarding.label}
+                    </Badge>
+                  )}
+                </div>
               </Card>
             );
           })}
@@ -122,6 +179,18 @@ export const BookingDetailPage: React.FC = () => {
       </section>
 
       <BookingTickets booking={b} canAct={canBook} />
+
+      {canChange && (
+        <ChangeSeatModal
+          booking={b}
+          open={seatOpen}
+          onClose={() => setSeatOpen(false)}
+          onChanged={(msg) => {
+            setSeatChanged(msg);
+            setSeatOpen(false);
+          }}
+        />
+      )}
 
       <CancelBookingModal
         booking={b}

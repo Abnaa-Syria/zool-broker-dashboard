@@ -18,6 +18,8 @@ interface TicketPreviewModalProps {
   loading?: boolean;
   error?: string | null;
   onRetry?: () => void;
+  /** ticketNumber → signed boarding code from the booking DTO (drawn as the QR). */
+  qrPayloads?: Readonly<Record<string, string | null>>;
 }
 
 /** Thermal-printer preview of the API TicketDocument, with print (current / all tickets). */
@@ -30,6 +32,7 @@ export const TicketPreviewModal: React.FC<TicketPreviewModalProps> = ({
   loading = false,
   error = null,
   onRetry,
+  qrPayloads,
 }) => {
   const [selected, setSelected] = React.useState<string | null>(null);
   const [stage, setStage] = React.useState<ReceiptPrinterStage>('printing');
@@ -137,7 +140,7 @@ export const TicketPreviewModal: React.FC<TicketPreviewModalProps> = ({
               <ReceiptPrinter.Output className="w-[calc(100%-1rem)]">
                 <ReceiptPrinter.Paper>
                   <div id="printable-ticket">
-                    <ThermalTicketPaper document={doc} passenger={passenger} bookingRef={bookingRef} />
+                    <ThermalTicketPaper document={doc} passenger={passenger} bookingRef={bookingRef} qrPayload={qrPayloads?.[passenger.ticketNumber]} />
                   </div>
                 </ReceiptPrinter.Paper>
               </ReceiptPrinter.Output>
@@ -152,7 +155,7 @@ export const TicketPreviewModal: React.FC<TicketPreviewModalProps> = ({
           <div id="printable-all-tickets" className="hidden" aria-hidden="true">
             {passengers.map((p, i) => (
               <div key={p.ticketNumber} style={i > 0 ? { breakBefore: 'page', paddingTop: 12 } : undefined}>
-                <ThermalTicketPaper document={doc} passenger={p} bookingRef={bookingRef} />
+                <ThermalTicketPaper document={doc} passenger={p} bookingRef={bookingRef} qrPayload={qrPayloads?.[p.ticketNumber]} />
               </div>
             ))}
           </div>

@@ -36,7 +36,7 @@ export type BrokerTrip = {
 
 export type SeatStatus = 'FREE' | 'HELD' | 'SOLD';
 
-/** GET /broker/trips/:id seat. Layout / women-only fields are optional: the API has none yet. */
+/** GET /broker/trips/:id seat; row/column are null on legacy trips without a vehicle layout. */
 export type TripSeat = {
   id: string;
   label: string;
@@ -62,7 +62,10 @@ export type HoldsResult = {
   holds: Array<{ id: string; seatId: string; seatLabel: string; expiresAt: string; remainingSeconds: number }>;
 };
 
-export type PassengerInput = { fullName: string; phone: string; idNumber?: string };
+export type Gender = 'MALE' | 'FEMALE';
+
+/** Gender is optional, but required (and must be FEMALE) for a passenger in a women-only seat. */
+export type PassengerInput = { fullName: string; phone: string; idNumber?: string; gender?: Gender };
 
 /** POST /broker/bookings/quote */
 export type BookingQuote = {
@@ -78,7 +81,17 @@ export type BookingQuote = {
   sufficientBalance: boolean;
   heldByMe: boolean;
   exposure: { ceiling: number; usedToday: number; remaining: number; withinCeiling: boolean };
+  /**
+   * Round trip (D-RT-01) only: the return leg's quote; then `balanceAfterMinor` / `sufficientBalance`
+   * cover BOTH legs (`combinedTotalMinor`).
+   */
+  returnLeg?: BookingQuote;
+  combinedTotalMinor?: number;
+  combinedCommissionMinor?: number;
 };
+
+/** POST /broker/bookings/quote|confirm round-trip leg (same passengers, passenger i ↔ seatIds[i]). */
+export type ReturnTripInput = { tripId: string; seatIds: string[] };
 
 /** GET /broker/carriers */
 export type AssignedCarrier = { companyId: string; key: string; name: string; commissionPercent: number };

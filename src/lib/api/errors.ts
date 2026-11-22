@@ -34,6 +34,9 @@ const MESSAGES: Record<string, string> = {
   EXPOSURE_CEILING_EXCEEDED: 'تم تجاوز سقف المديونية المسموح للمكتب.',
   CARRIER_NOT_ASSIGNED: 'شركة النقل غير مُسندة لهذا المكتب.',
   SEAT_UNAVAILABLE: 'مقعد أو أكثر لم يعد متاحًا.',
+  WOMEN_ONLY_SEAT: 'مقعد مخصص للسيدات: لا يُحجز إلا لمسافرة (حدّد الجنس «أنثى»).',
+  ROUND_TRIP_INVALID: 'رحلة العودة يجب أن تكون بين نفس المدينتين بالاتجاه المعاكس وتغادر بعد وصول رحلة الذهاب.',
+  CHANGE_NOT_ALLOWED: 'لا يمكن تعديل هذا الحجز.',
   AUTH_AUTHZ_STALE: 'تغيّرت صلاحياتك. حدّث الصفحة أو سجّل الدخول مرة أخرى.',
 };
 
@@ -47,7 +50,19 @@ export function errorMessage(error: unknown, fallback = 'حدث خطأ غير م
     if (error.code === 'VALIDATION_ERROR' && error.details && typeof error.details === 'object' && 'field' in error.details) {
       return `${MESSAGES.VALIDATION_ERROR} (${String((error.details as { field: unknown }).field)}: ${error.message})`;
     }
+    if (error.code === 'CHANGE_NOT_ALLOWED') return changeNotAllowedMessage(error.details);
     return MESSAGES[error.code] ?? error.message ?? fallback;
   }
   return fallback;
+}
+
+/** CHANGE_NOT_ALLOWED (409) details: { cutoffMinutes } | { max } | { status } (booking-changes.service). */
+export function changeNotAllowedMessage(details: unknown): string {
+  const d = (details && typeof details === 'object' ? details : {}) as { cutoffMinutes?: unknown; max?: unknown; status?: unknown };
+  if (typeof d.cutoffMinutes === 'number') {
+    return `${MESSAGES.CHANGE_NOT_ALLOWED} يُغلق تعديل الرحلة قبل ${d.cutoffMinutes} دقيقة من موعد المغادرة.`;
+  }
+  if (typeof d.max === 'number') return `${MESSAGES.CHANGE_NOT_ALLOWED} بلغ الحجز الحد الأقصى لعدد التعديلات (${d.max}).`;
+  if (typeof d.status === 'string') return `${MESSAGES.CHANGE_NOT_ALLOWED} يمكن تعديل الحجوزات المؤكدة فقط.`;
+  return MESSAGES.CHANGE_NOT_ALLOWED;
 }

@@ -8,9 +8,9 @@ import { routeLabel } from '../bookings/labels';
 import { pointLabel } from './labels';
 import type { BrokerTrip } from './types';
 
-export type FlowStep = 'search' | 'results' | 'seats' | 'passengers' | 'review' | 'success';
+export type FlowStep = 'search' | 'results' | 'seats' | 'returnResults' | 'returnSeats' | 'passengers' | 'review' | 'success';
 
-const STEPS: Array<{ id: FlowStep; label: string }> = [
+const ONE_WAY_STEPS: Array<{ id: FlowStep; label: string }> = [
   { id: 'search', label: 'البحث' },
   { id: 'results', label: 'الرحلات' },
   { id: 'seats', label: 'المقاعد' },
@@ -19,7 +19,19 @@ const STEPS: Array<{ id: FlowStep; label: string }> = [
   { id: 'success', label: 'التذاكر' },
 ];
 
-export const StepIndicator: React.FC<{ step: FlowStep }> = ({ step }) => {
+const ROUND_TRIP_STEPS: Array<{ id: FlowStep; label: string }> = [
+  { id: 'search', label: 'البحث' },
+  { id: 'results', label: 'رحلة الذهاب' },
+  { id: 'seats', label: 'مقاعد الذهاب' },
+  { id: 'returnResults', label: 'رحلة العودة' },
+  { id: 'returnSeats', label: 'مقاعد العودة' },
+  { id: 'passengers', label: 'المسافرون' },
+  { id: 'review', label: 'المراجعة' },
+  { id: 'success', label: 'التذاكر' },
+];
+
+export const StepIndicator: React.FC<{ step: FlowStep; roundTrip?: boolean }> = ({ step, roundTrip = false }) => {
+  const STEPS = roundTrip ? ROUND_TRIP_STEPS : ONE_WAY_STEPS;
   const current = STEPS.findIndex((s) => s.id === step);
   return (
     <ol className="flex flex-wrap items-center gap-1 text-xs" aria-label="مراحل الحجز">
@@ -67,10 +79,14 @@ export const HoldTimer: React.FC<{ seconds: number | null; seatLabels: string[] 
   );
 };
 
-export const TripSummary: React.FC<{ trip: BrokerTrip; passengers: number; className?: string }> = ({ trip, passengers, className }) => (
+export const TripSummary: React.FC<{ trip: BrokerTrip; passengers: number; label?: string; className?: string }> = ({ trip, passengers, label, className }) => (
   <div className={cn('rounded-xl border border-outline-variant/40 bg-surface-container-lowest p-space-md flex flex-wrap items-center justify-between gap-space-md', className)}>
     <div>
-      <div className="text-xs text-on-surface-variant">{trip.carrier.name}{trip.tripNumber ? ` • ${trip.tripNumber}` : ''}</div>
+      <div className="text-xs text-on-surface-variant">
+        {label && <span className="font-bold text-secondary">{label} • </span>}
+        {trip.carrier.name}
+        {trip.tripNumber ? ` • ${trip.tripNumber}` : ''}
+      </div>
       <div className="font-bold text-on-surface">
         {routeLabel(pointLabel(trip.origin), pointLabel(trip.destination))}
       </div>

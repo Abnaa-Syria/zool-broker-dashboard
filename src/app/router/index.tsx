@@ -6,6 +6,7 @@ import { HomePage } from '../../features/home/HomePage';
 import { BookingFlowPage } from '../../features/booking/BookingFlowPage';
 import { BookingsListPage } from '../../features/bookings/BookingsListPage';
 import { BookingDetailPage } from '../../features/bookings/BookingDetailPage';
+import { ChangeTripPage } from '../../features/bookings/ChangeTripPage';
 import { WalletPage } from '../../features/wallet/WalletPage';
 import { StaffPage } from '../../features/staff/StaffPage';
 import { CommissionsPage } from '../../features/commissions/CommissionsPage';
@@ -33,6 +34,7 @@ export const router = createBrowserRouter([
       { path: 'booking/new', element: <BookingFlowPage /> },
       { path: 'bookings', element: <BookingsListPage /> },
       { path: 'bookings/:id', element: <BookingDetailPage /> },
+      { path: 'bookings/:id/change', element: <ChangeTripPage /> },
       { path: '*', element: <Navigate to="/home" replace /> },
     ],
   },
