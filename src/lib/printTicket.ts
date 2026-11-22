@@ -117,7 +117,11 @@ export function printTicketElement(elementId = 'printable-ticket') {
   `);
   doc.close();
 
+  // Image loads and the safety fallback can both fire: open the print dialog only once.
+  let printed = false;
   const triggerPrint = () => {
+    if (printed) return;
+    printed = true;
     iframe.contentWindow?.focus();
     iframe.contentWindow?.print();
     setTimeout(() => {
