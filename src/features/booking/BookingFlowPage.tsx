@@ -22,7 +22,7 @@ import type { BrokerTrip, TripSeat } from './types';
 
 type HoldState = { holdIds: string[]; seats: TripSeat[]; deadline: number };
 
-const INITIAL_SEARCH: TripSearch = { origin: '', destination: '', date: '', passengers: 1 };
+const INITIAL_SEARCH: TripSearch = { fromCityId: '', toCityId: '', date: '', passengers: 1 };
 
 /** Codes that mean the seats are gone or no longer held: the user must pick seats again. */
 const BACK_TO_SEATS = new Set(['HOLD_REQUIRED', 'HOLD_EXPIRED', 'SEAT_UNAVAILABLE', 'NOT_FOUND']);

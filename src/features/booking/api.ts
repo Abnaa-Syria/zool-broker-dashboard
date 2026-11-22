@@ -1,9 +1,12 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api/client';
 import type { ConfirmResult } from '../bookings/types';
-import type { AssignedCarrier, BookingQuote, BrokerTrip, BrokerTripDetail, HoldsResult, PassengerInput } from './types';
+import type { AssignedCarrier, BookingQuote, BrokerTrip, BrokerTripDetail, HoldsResult, PassengerInput, StationRef } from './types';
 
-export type TripSearch = { origin: string; destination: string; date: string; passengers: number };
+export type TripSearch = { fromCityId: string; toCityId: string; date: string; passengers: number };
+
+/** GET /public/cities (no login): active cities with their stations. */
+export type City = { id: string; code: string; nameAr: string; nameEn: string; stations: StationRef[] };
 
 export function useTripSearch(search: TripSearch | null, page: number) {
   return useQuery({
@@ -13,26 +16,17 @@ export function useTripSearch(search: TripSearch | null, page: number) {
     queryFn: ({ signal }) =>
       api.get<BrokerTrip[]>(
         '/broker/trips',
-        { origin: search?.origin.trim(), destination: search?.destination.trim(), date: search?.date, page, pageSize: 20 },
+        { fromCityId: search?.fromCityId || undefined, toCityId: search?.toCityId || undefined, date: search?.date || undefined, page, pageSize: 20 },
         signal,
       ),
   });
 }
 
-/** City suggestions = origins/destinations of upcoming bookable trips (there is no broker cities endpoint). */
-export function useCitySuggestions() {
+export function useCities() {
   return useQuery({
-    queryKey: ['broker-trip-cities'],
-    staleTime: 5 * 60_000,
-    queryFn: async ({ signal }) => {
-      const { data } = await api.get<BrokerTrip[]>('/broker/trips', { pageSize: 100 }, signal);
-      const set = new Set<string>();
-      for (const t of data) {
-        set.add(t.origin);
-        set.add(t.destination);
-      }
-      return [...set].sort((a, b) => a.localeCompare(b, 'ar'));
-    },
+    queryKey: ['public-cities'],
+    staleTime: 10 * 60_000,
+    queryFn: ({ signal }) => api.get<City[]>('/public/cities', undefined, signal).then((r) => r.data),
   });
 }
 

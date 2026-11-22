@@ -9,7 +9,7 @@ export function sortSeats<T extends { label: string }>(seats: readonly T[]): T[]
   return [...seats].sort((a, b) => compareSeatLabels(a.label, b.label));
 }
 
-/** True when every seat carries grid coordinates (the API does not send them yet). */
+/** True when every seat carries grid coordinates (legacy trips without a vehicle layout have none). */
 export function hasLayout(seats: readonly TripSeat[]): boolean {
   return seats.length > 0 && seats.every((s) => typeof s.row === 'number' && typeof s.column === 'number');
 }

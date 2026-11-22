@@ -5,6 +5,7 @@ import { cn } from '../../lib/utils';
 import { formatCountdown } from './countdown';
 import { formatPercent } from './totals';
 import { routeLabel } from '../bookings/labels';
+import { pointLabel } from './labels';
 import type { BrokerTrip } from './types';
 
 export type FlowStep = 'search' | 'results' | 'seats' | 'passengers' | 'review' | 'success';
@@ -69,9 +70,9 @@ export const HoldTimer: React.FC<{ seconds: number | null; seatLabels: string[] 
 export const TripSummary: React.FC<{ trip: BrokerTrip; passengers: number; className?: string }> = ({ trip, passengers, className }) => (
   <div className={cn('rounded-xl border border-outline-variant/40 bg-surface-container-lowest p-space-md flex flex-wrap items-center justify-between gap-space-md', className)}>
     <div>
-      <div className="text-xs text-on-surface-variant">{trip.company.name}</div>
+      <div className="text-xs text-on-surface-variant">{trip.carrier.name}{trip.tripNumber ? ` • ${trip.tripNumber}` : ''}</div>
       <div className="font-bold text-on-surface">
-        {routeLabel(trip.origin, trip.destination)}
+        {routeLabel(pointLabel(trip.origin), pointLabel(trip.destination))}
       </div>
       <div className="text-xs text-on-surface-variant">
         {formatDateTime(trip.departureAt)}

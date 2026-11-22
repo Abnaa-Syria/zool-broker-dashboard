@@ -5,7 +5,7 @@ import { hasLayout, isSelectable, layoutGrid, orderedSelection, planHolds, prune
 import { computeCommission, estimateBooking, formatPercent, walletAfter } from './totals';
 import type { TripSeat } from './types';
 
-const seat = (id: string, label: string, extra: Partial<TripSeat> = {}): TripSeat => ({ id, label, status: 'FREE', heldByMe: false, ...extra });
+const seat = (id: string, label: string, extra: Partial<TripSeat> = {}): TripSeat => ({ id, label, status: 'FREE', heldByMe: false, row: null, column: null, isWomenOnly: false, ...extra });
 
 describe('seat selection', () => {
   const free1 = seat('s1', 'A1');

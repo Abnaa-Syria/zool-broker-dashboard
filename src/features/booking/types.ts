@@ -2,15 +2,30 @@
 
 export type TripCompany = { id: string; key: string; name: string };
 
-/** GET /broker/trips item (`toBrokerTripDto`). Money in minor units. */
+export type CityRef = { id: string | null; code: string | null; nameAr: string; nameEn: string };
+export type StationRef = { id: string; nameAr: string; nameEn: string };
+/** Trip endpoint: the station is null on legacy trips created without one. */
+export type TripPoint = { station: StationRef | null; city: CityRef };
+
+export type TripStop = { sequence: number; kind: 'ORIGIN' | 'STOP' | 'DESTINATION'; station: StationRef | null; city: CityRef; scheduledAt: string | null };
+export type TripAmenity = { code: string; nameAr: string; nameEn: string; icon: string; value: string | null };
+
+/** GET /broker/trips item: the shared app trip view (`trip-view.ts`) + broker fields. Money in minor units. */
 export type BrokerTrip = {
   id: string;
+  tripNumber: string | null;
   company: TripCompany;
-  origin: string;
-  destination: string;
+  carrier: { id: string; name: string; legalName: string; logoUrl: string | null; rating: { average: number | null; count: number } };
+  serviceClass: 'STANDARD' | 'VIP';
+  origin: TripPoint;
+  destination: TripPoint;
   departureAt: string;
-  /** Not returned yet; rendered when the API adds it. */
-  arrivalAt?: string | null;
+  arrivalAt: string | null;
+  durationMinutes: number | null;
+  isDirect: boolean;
+  stops: TripStop[];
+  amenities: TripAmenity[];
+  vehicleModel: string | null;
   basePrice: number;
   commissionPercent: number;
   expectedCommissionPerSeat: number;
@@ -30,12 +45,14 @@ export type TripSeat = {
   holdId?: string;
   holdExpiresAt?: string;
   remainingSeconds?: number;
-  row?: number | null;
-  column?: number | null;
-  womenOnly?: boolean | null;
+  row: number | null;
+  column: number | null;
+  isWomenOnly: boolean;
 };
 
-export type BrokerTripDetail = BrokerTrip & { seats: TripSeat[] };
+export type SeatLayout = { rows: number; columns: number; aisleAfterColumn: number; driverSide: 'LEFT' | 'RIGHT' };
+
+export type BrokerTripDetail = BrokerTrip & { layout: SeatLayout | null; seats: TripSeat[] };
 
 /** POST /broker/trips/:id/holds */
 export type HoldsResult = {

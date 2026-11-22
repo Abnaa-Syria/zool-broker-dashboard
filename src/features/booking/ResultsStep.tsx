@@ -7,7 +7,8 @@ import { errorMessage } from '../../lib/api/errors';
 import { formatDateTime } from '../../lib/dates';
 import { formatSdg } from '../../lib/money';
 import { cn } from '../../lib/utils';
-import { useTripSearch, type TripSearch } from './api';
+import { useCities, useTripSearch, type TripSearch } from './api';
+import { pointLabel } from './labels';
 import { formatPercent } from './totals';
 import { routeLabel } from '../bookings/labels';
 import type { BrokerTrip } from './types';
@@ -21,7 +22,9 @@ export const ResultsStep: React.FC<{
   const query = useTripSearch(search, page);
   const trips = query.data?.data ?? [];
   const meta = query.data?.meta;
-  const route = routeLabel(search.origin || 'كل المدن', search.destination || 'كل المدن');
+  const cities = useCities();
+  const cityName = (id: string) => cities.data?.find((c) => c.id === id)?.nameAr ?? 'كل المدن';
+  const route = routeLabel(search.fromCityId ? cityName(search.fromCityId) : 'كل المدن', search.toCityId ? cityName(search.toCityId) : 'كل المدن');
 
   return (
     <div className="space-y-space-md">
@@ -65,13 +68,15 @@ export const ResultsStep: React.FC<{
               >
                 <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold">{t.company.name}</span>
+                    <span className="font-bold">{t.carrier.name}</span>
+                    {t.serviceClass === 'VIP' && <Badge size="sm" variant="warning">VIP</Badge>}
                     <Badge size="sm" variant="info">
                       عمولة {formatPercent(t.commissionPercent)}
                     </Badge>
                   </div>
                   <div className="text-sm">
-                    {routeLabel(t.origin, t.destination)}
+                    {routeLabel(pointLabel(t.origin), pointLabel(t.destination))}
+                    <span className="text-xs text-on-surface-variant"> • {t.isDirect ? 'مباشرة' : `${t.stops.length - 2} توقف`}</span>
                   </div>
                   <div className="text-xs text-on-surface-variant">
                     المغادرة {formatDateTime(t.departureAt)}

@@ -39,7 +39,7 @@ export const SeatStep: React.FC<{
   if (error || !trip) return <ErrorState title="تعذّر تحميل المقاعد" message={errorMessage(error)} onRetry={onRetry} />;
 
   const seats = trip.seats;
-  const anyWomen = seats.some((s) => s.womenOnly);
+  const anyWomen = seats.some((s) => s.isWomenOnly);
   const remaining = passengers - selected.length;
   const estimate = estimateBooking(trip.basePrice, Math.max(selected.length, 1), trip.commissionPercent);
 
@@ -51,16 +51,16 @@ export const SeatStep: React.FC<{
         type="button"
         disabled={view === 'taken'}
         aria-pressed={view === 'selected'}
-        aria-label={`مقعد ${seat.label}: ${VIEW_LABEL[view]}${seat.womenOnly ? '، مخصص للسيدات' : ''}`}
+        aria-label={`مقعد ${seat.label}: ${VIEW_LABEL[view]}${seat.isWomenOnly ? '، مخصص للسيدات' : ''}`}
         onClick={() => onSelect(toggleSeat(selected, seat, passengers))}
         className={cn(
           'relative h-11 min-w-11 px-2 rounded-lg border text-sm font-mono font-bold transition-colors',
           VIEW_CLASS[view],
-          seat.womenOnly && view !== 'selected' && 'ring-2 ring-pink-300',
+          seat.isWomenOnly && view !== 'selected' && 'ring-2 ring-pink-300',
         )}
       >
         {seat.label}
-        {seat.womenOnly && <span className="material-symbols-outlined absolute -top-2 -left-2 text-[14px] text-pink-500 bg-white rounded-full">woman</span>}
+        {seat.isWomenOnly && <span className="material-symbols-outlined absolute -top-2 -left-2 text-[14px] text-pink-500 bg-white rounded-full">woman</span>}
       </button>
     );
   };
@@ -85,7 +85,12 @@ export const SeatStep: React.FC<{
           <div className="inline-flex flex-col gap-2">
             {layoutGrid(seats).map((row, r) => (
               <div key={r} className="flex gap-2">
-                {row.map((seat, c) => (seat ? renderSeat(seat) : <span key={`gap-${r}-${c}`} className="w-11" aria-hidden="true" />))}
+                {row.map((seat, c) => (
+                  <React.Fragment key={`cell-${r}-${c}`}>
+                    {seat ? renderSeat(seat) : <span className="w-11" aria-hidden="true" />}
+                    {trip.layout && c + 1 === trip.layout.aisleAfterColumn && <span className="w-6" aria-hidden="true" />}
+                  </React.Fragment>
+                ))}
               </div>
             ))}
           </div>
