@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_CLERK_FLAGS, diffStaff, selfEditBlock, validatePhone } from './logic';
+import { DEFAULT_CLERK_FLAGS, diffStaff, permissionLabel, roleLabel, selfEditBlock, statusNotice, validatePhone } from './logic';
 
 describe('staff logic', () => {
   it('diffs only changed fields', () => {
@@ -23,5 +23,16 @@ describe('staff logic', () => {
     expect(validatePhone('0912345678')).toBeNull();
     expect(validatePhone('12')).not.toBeNull();
     expect(validatePhone('abc12345678')).not.toBeNull();
+  });
+});
+
+describe('staff labels', () => {
+  it('roles, permissions and status notices', () => {
+    expect(roleLabel('MANAGER')).toBe('مدير المكتب');
+    expect(roleLabel('CLERK')).toBe('موظف حجز');
+    expect(permissionLabel('broker.book')).toBe('الحجز وإصدار التذاكر');
+    expect(permissionLabel('x.y')).toBe('x.y');
+    expect(statusNotice({ displayName: 'علي', status: 'SUSPENDED' })).toContain('إيقاف');
+    expect(statusNotice({ displayName: 'علي', status: 'ACTIVE' })).toContain('إعادة تفعيل');
   });
 });

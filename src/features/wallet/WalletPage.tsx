@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { SimplePager } from '../../components/shared/SimplePager';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -13,14 +14,8 @@ import { formatSdg } from '../../lib/money';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../auth/auth-context';
 import { useBrokerWallet, useTopUps, useWalletLedger, type TopUpIntent, type TopUpStatus } from './api';
-import { TOP_UP_STATUS_LABELS, ledgerTypeLabel, signedAmountMinor } from './logic';
+import { LEDGER_REFERENCE_LABELS, TOP_UP_STATUS_LABELS, ledgerReferencePath, ledgerTypeLabel, signedAmountMinor } from './logic';
 import { TopUpModal, TopUpStatusBadge } from './TopUpModal';
-
-const REFERENCE_LABELS: Record<string, string> = {
-  top_up_intent: 'طلب شحن',
-  booking: 'حجز',
-  commission_settlement: 'تسوية عمولة',
-};
 
 function shortId(id: string): string {
   return id.length > 10 ? `…${id.slice(-8)}` : id;
@@ -29,6 +24,7 @@ function shortId(id: string): string {
 /** Office wallet: balance, paginated ledger, and the top-up flow (`broker.wallet.topup`). */
 export const WalletPage: React.FC = () => {
   const { can, employee, isManager } = useAuth();
+  const navigate = useNavigate();
   const canTopUp = can('broker.wallet.topup');
   const officeSuspended = employee?.office.status === 'SUSPENDED';
   const wallet = useBrokerWallet();
@@ -133,23 +129,24 @@ export const WalletPage: React.FC = () => {
               <ul className="divide-y divide-surface-container">
                 {topUpRows.map((t) => (
                   <li key={t.id} className="flex flex-wrap items-center gap-x-space-md gap-y-1 py-2 text-sm">
-                    <span className="tabular-nums font-semibold min-w-24">{formatSdg(t.amountMinor)}</span>
+                    <Link to={`/wallet/top-ups/${t.id}`} className="tabular-nums font-semibold min-w-24 text-secondary hover:underline">
+                      {formatSdg(t.amountMinor)}
+                    </Link>
                     <TopUpStatusBadge status={t.status} />
                     <span className="text-xs text-on-surface-variant">
                       {formatDateTime(t.createdAt)}
                       {t.confirmationPath === 'MANUAL_FALLBACK' && ' · إيصال يدوي'}
                     </span>
                     {t.status === 'FAILED' && t.note && <span className="text-xs text-error basis-full">سبب الرفض: {t.note}</span>}
-                    <span className="ms-auto">
-                      {canTopUp && (t.status === 'PENDING' || t.status === 'FAILED') ? (
+                    <span className="ms-auto flex gap-1">
+                      {canTopUp && (t.status === 'PENDING' || t.status === 'FAILED') && (
                         <Button size="sm" variant="outline" onClick={() => openModal(t)}>
                           {t.status === 'FAILED' ? 'إعادة إرفاق إيصال' : 'متابعة الدفع / إرفاق إيصال'}
                         </Button>
-                      ) : (
-                        <Button size="sm" variant="ghost" onClick={() => openModal(t)}>
-                          التفاصيل
-                        </Button>
                       )}
+                      <Button size="sm" variant="ghost" icon="chevron_left" iconPosition="end" onClick={() => navigate(`/wallet/top-ups/${t.id}`)}>
+                        التفاصيل
+                      </Button>
                     </span>
                   </li>
                 ))}
@@ -192,8 +189,21 @@ export const WalletPage: React.FC = () => {
                 {entries.map((e) => {
                   const signed = signedAmountMinor(e);
                   return (
-                    <TableRow key={e.id}>
-                      <TableCell className="whitespace-nowrap text-xs">{formatDateTime(e.createdAt)}</TableCell>
+                    <TableRow
+                      key={e.id}
+                      className="cursor-pointer"
+                      onClick={() => navigate(`/wallet/ledger/${e.id}`, { state: { entry: e } })}
+                    >
+                      <TableCell className="whitespace-nowrap text-xs">
+                        <Link
+                          to={`/wallet/ledger/${e.id}`}
+                          state={{ entry: e }}
+                          className="text-secondary hover:underline"
+                          onClick={(ev) => ev.stopPropagation()}
+                        >
+                          {formatDateTime(e.createdAt)}
+                        </Link>
+                      </TableCell>
                       <TableCell>
                         <Badge size="sm" variant={e.direction === 'CREDIT' ? 'success' : 'neutral'}>
                           {ledgerTypeLabel(e.type)}
@@ -207,8 +217,22 @@ export const WalletPage: React.FC = () => {
                       <TableCell className="text-xs text-on-surface-variant">
                         {e.referenceType ? (
                           <span title={e.referenceId ?? undefined}>
-                            {REFERENCE_LABELS[e.referenceType] ?? e.referenceType}
-                            {e.referenceId && <span className="font-mono ms-1" dir="ltr">{shortId(e.referenceId)}</span>}
+                            {LEDGER_REFERENCE_LABELS[e.referenceType] ?? e.referenceType}
+                            {e.referenceId &&
+                              (ledgerReferencePath(e) ? (
+                                <Link
+                                  to={ledgerReferencePath(e)!}
+                                  className="font-mono ms-1 text-secondary hover:underline"
+                                  dir="ltr"
+                                  onClick={(ev) => ev.stopPropagation()}
+                                >
+                                  {shortId(e.referenceId)}
+                                </Link>
+                              ) : (
+                                <span className="font-mono ms-1" dir="ltr">
+                                  {shortId(e.referenceId)}
+                                </span>
+                              ))}
                           </span>
                         ) : (
                           '—'

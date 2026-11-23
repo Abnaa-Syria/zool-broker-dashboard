@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../../lib/api/client';
-import { idempotencyKeyFor, ledgerTypeLabel, minTopUpFromError, parseSdgInput, signedAmountMinor, topUpPollInterval, validateReceipt } from './logic';
+import {
+  balanceBeforeMinor,
+  idempotencyKeyFor,
+  ledgerReferencePath,
+  ledgerTypeLabel,
+  minTopUpFromError,
+  parseSdgInput,
+  signedAmountMinor,
+  topUpPollInterval,
+  topUpTimeline,
+  validateReceipt,
+} from './logic';
 
 describe('wallet logic', () => {
   it('labels ledger types in Arabic and falls back to the raw code', () => {
@@ -55,5 +66,30 @@ describe('wallet logic', () => {
     expect(topUpPollInterval('CONFIRMED')).toBe(false);
     expect(topUpPollInterval('FAILED')).toBe(false);
     expect(topUpPollInterval(undefined)).toBe(false);
+  });
+});
+
+describe('wallet detail helpers', () => {
+  it('balance before an entry', () => {
+    expect(balanceBeforeMinor({ direction: 'DEBIT', amountMinor: 3500, balanceAfterMinor: 1500 })).toBe(5000);
+    expect(balanceBeforeMinor({ direction: 'CREDIT', amountMinor: 3500, balanceAfterMinor: 5000 })).toBe(1500);
+  });
+
+  it('reference paths', () => {
+    expect(ledgerReferencePath({ referenceType: 'booking', referenceId: 'b1' })).toBe('/bookings/b1');
+    expect(ledgerReferencePath({ referenceType: 'top_up_intent', referenceId: 't1' })).toBe('/wallet/top-ups/t1');
+    expect(ledgerReferencePath({ referenceType: 'commission_settlement', referenceId: 's1' })).toBeNull();
+    expect(ledgerReferencePath({ referenceType: 'booking', referenceId: null })).toBeNull();
+  });
+
+  it('top-up timeline', () => {
+    const base = { createdAt: 'c', confirmedAt: null, failedAt: null, hasEvidence: false };
+    expect(topUpTimeline({ ...base, status: 'PENDING' }).map((s) => s.key)).toEqual(['created', 'pending']);
+    expect(topUpTimeline({ ...base, status: 'CONFIRMED', confirmedAt: 'x' }).map((s) => s.key)).toEqual(['created', 'confirmed']);
+    const review = topUpTimeline({ ...base, status: 'PENDING_REVIEW', failedAt: 'f', hasEvidence: true });
+    expect(review.map((s) => s.key)).toEqual(['created', 'failed', 'evidence', 'review']);
+    expect(review[2]!.tone).toBe('current');
+    expect(topUpTimeline({ ...base, status: 'FAILED', failedAt: 'f' }).at(-1)!.tone).toBe('error');
+    expect(topUpTimeline({ ...base, status: 'FAILED', failedAt: 'f', hasEvidence: true }).map((s) => s.key)).toEqual(['created', 'evidence', 'failed']);
   });
 });

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { SimplePager } from '../../components/shared/SimplePager';
 import { Badge } from '../../components/ui/Badge';
 import { MetricCard } from '../../components/ui/Card';
@@ -20,6 +21,7 @@ function shortId(id: string): string {
 /** Office commissions (reports.view or manager). Settlement is done by the platform (D-SET-01). */
 export const CommissionsPage: React.FC = () => {
   const { can } = useAuth();
+  const navigate = useNavigate();
   const allowed = can('broker.reports.view');
   const [page, setPage] = React.useState(1);
   const [status, setStatus] = React.useState<AccrualStatus>('UNSETTLED');
@@ -103,13 +105,24 @@ export const CommissionsPage: React.FC = () => {
                     {d.items.map((a) => {
                       const s = ACCRUAL_STATUS[a.status] ?? { label: a.status, variant: 'info' as const };
                       return (
-                        <TableRow key={a.id}>
+                        <TableRow key={a.id} className="cursor-pointer" onClick={() => navigate(`/commissions/${a.id}`, { state: { accrual: a } })}>
                           <TableCell className="text-xs whitespace-nowrap">{formatDateTime(a.booking.confirmedAt ?? a.createdAt)}</TableCell>
                           <TableCell className="font-mono text-xs" dir="ltr" title={a.bookingId}>
-                            {shortId(a.bookingId)}
+                            <Link to={`/bookings/${a.bookingId}`} className="text-secondary hover:underline" onClick={(e) => e.stopPropagation()}>
+                              {shortId(a.bookingId)}
+                            </Link>
                           </TableCell>
                           <TableCell className="tabular-nums">{formatSdg(a.booking.totalAmountMinor)}</TableCell>
-                          <TableCell className="tabular-nums font-semibold">{formatSdg(a.amountMinor)}</TableCell>
+                          <TableCell className="tabular-nums font-semibold">
+                            <Link
+                              to={`/commissions/${a.id}`}
+                              state={{ accrual: a }}
+                              className="text-secondary hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {formatSdg(a.amountMinor)}
+                            </Link>
+                          </TableCell>
                           <TableCell>
                             <Badge size="sm" dot variant={s.variant}>
                               {s.label}

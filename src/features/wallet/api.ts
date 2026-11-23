@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api/client';
+import { collectInPages, findInPages, SCAN_PAGE_SIZE } from '../../lib/api/findInPages';
 import { topUpPollInterval, type LedgerType } from './logic';
 
 export { useBrokerWallet } from '../home/api';
@@ -46,6 +47,59 @@ export function useWalletLedger(page: number) {
     queryKey: ['broker-wallet-ledger', page],
     queryFn: ({ signal }) => api.get<LedgerEntry[]>('/broker/wallet/ledger', { page, pageSize: LEDGER_PAGE_SIZE }, signal),
     placeholderData: keepPreviousData,
+  });
+}
+
+function ledgerPage(page: number, signal?: AbortSignal) {
+  return api
+    .get<LedgerEntry[]>('/broker/wallet/ledger', { page, pageSize: SCAN_PAGE_SIZE }, signal)
+    .then((r) => ({ items: r.data, totalPages: r.meta?.totalPages ?? 1 }));
+}
+
+/**
+ * Wallet movements of one booking (debit at confirm, refund on cancel, change differences). The
+ * ledger is newest first, so the scan stops at entries older than the booking.
+ */
+export function useBookingLedgerEntries(bookingId: string | undefined, createdAt: string | undefined) {
+  return useQuery({
+    queryKey: ['broker-wallet-ledger-by-booking', bookingId],
+    enabled: Boolean(bookingId && createdAt),
+    staleTime: 30_000,
+    queryFn: ({ signal }) => {
+      const floor = new Date(createdAt!).getTime() - 60_000;
+      return collectInPages(
+        (page) => ledgerPage(page, signal),
+        (e) => e.referenceType === 'booking' && e.referenceId === bookingId,
+        (e) => new Date(e.createdAt).getTime() < floor,
+      );
+    },
+  });
+}
+
+function scanLedger(match: (e: LedgerEntry) => boolean, signal?: AbortSignal): Promise<LedgerEntry | null> {
+  return findInPages((page) => ledgerPage(page, signal), match);
+}
+
+/**
+ * One ledger entry for /wallet/ledger/:id. The API has no GET-by-id for ledger entries, so the page
+ * starts from the row it was opened from (router state) and otherwise scans the ledger.
+ */
+export function useLedgerEntry(id: string | undefined, seed?: LedgerEntry | null) {
+  return useQuery({
+    queryKey: ['broker-wallet-ledger-entry', id],
+    enabled: Boolean(id),
+    initialData: seed && seed.id === id ? seed : undefined,
+    queryFn: ({ signal }) => scanLedger((e) => e.id === id, signal),
+  });
+}
+
+/** The wallet credit created by a confirmed top-up (ledger reference `top_up_intent`). */
+export function useTopUpLedgerEntry(intentId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ['broker-wallet-ledger-by-top-up', intentId],
+    enabled: Boolean(intentId) && enabled,
+    staleTime: 60_000,
+    queryFn: ({ signal }) => scanLedger((e) => e.referenceType === 'top_up_intent' && e.referenceId === intentId, signal),
   });
 }
 

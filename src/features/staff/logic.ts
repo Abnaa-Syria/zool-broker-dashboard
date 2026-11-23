@@ -40,3 +40,28 @@ export function validatePhone(raw: string): string | null {
   if (!/^\+?\d{8,15}$/.test(compact)) return 'أدخل رقم هاتف صحيحًا، مثل ‎+249912345678.';
   return null;
 }
+
+/** Notice shown after a suspend / reactivate. */
+export function statusNotice(saved: { displayName: string; status: string }): string {
+  return saved.status === 'SUSPENDED' ? `تم إيقاف ${saved.displayName} وإنهاء جلساته.` : `تمت إعادة تفعيل ${saved.displayName}.`;
+}
+
+export function roleLabel(role: string): string {
+  return role === 'MANAGER' ? 'مدير المكتب' : role === 'CLERK' ? 'موظف حجز' : role;
+}
+
+/** Arabic label of a broker permission key (GET /broker/staff `permissions`). */
+export function permissionLabel(permission: string): string {
+  switch (permission) {
+    case 'broker.book':
+      return 'الحجز وإصدار التذاكر';
+    case 'broker.wallet.topup':
+      return 'شحن المحفظة';
+    case 'broker.reports.view':
+      return 'التقارير والعمولات';
+    case 'broker.staff.manage':
+      return 'إدارة الموظفين';
+    default:
+      return permission;
+  }
+}

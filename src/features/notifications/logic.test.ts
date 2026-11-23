@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { markReadLocally, notificationIcon, notificationTarget, unreadBadge } from './logic';
+import { markReadLocally, notificationIcon, notificationLinks, notificationTarget, notificationTypeLabel, unreadBadge } from './logic';
 import type { AppNotification } from './types';
 
 const n = (id: string, isRead = false, data: AppNotification['data'] = null): AppNotification => ({
@@ -23,9 +23,20 @@ describe('notifications', () => {
 
   it('target from data', () => {
     expect(notificationTarget(n('1', false, { bookingId: 'b1' }))).toBe('/bookings/b1');
-    expect(notificationTarget(n('1', false, { tripId: 't1' }))).toBe('/bookings');
-    expect(notificationTarget(n('1', false, { topUpRequestId: 'x' }))).toBe('/wallet');
+    expect(notificationTarget(n('1', false, { tripId: 't1' }))).toBe('/bookings?status=CANCELLED');
+    expect(notificationTarget(n('1', false, { topUpRequestId: 'x' }))).toBe('/wallet/top-ups/x');
     expect(notificationTarget(n('1'))).toBeNull();
+  });
+
+  it('lists every deep link', () => {
+    expect(notificationLinks(n('1', false, { bookingId: 'b1', tripId: 't1' })).map((l) => l.path)).toEqual(['/bookings/b1']);
+    expect(notificationLinks(n('1', false, { bookingId: 'b1', topUpId: 'x' })).map((l) => l.path)).toEqual(['/bookings/b1', '/wallet/top-ups/x']);
+    expect(notificationLinks(n('1', false, { bookingId: 5 }))).toEqual([]);
+  });
+
+  it('type labels', () => {
+    expect(notificationTypeLabel('TRIP_CANCELLED')).toBe('إلغاء رحلة');
+    expect(notificationTypeLabel('NEW_TYPE')).toBe('NEW_TYPE');
   });
 
   it('icons fall back to the bell', () => {

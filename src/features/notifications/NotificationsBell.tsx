@@ -24,8 +24,8 @@ export const NotificationsBell: React.FC = () => {
 
   const select = (n: AppNotification) => {
     if (!n.isRead) markRead.mutate(n.id);
-    const target = notificationTarget(n);
-    if (target) navigate(target);
+    // Straight to the booking / top-up it is about; otherwise its own page.
+    navigate(notificationTarget(n) ?? `/notifications/${n.id}`);
   };
 
   return (
@@ -102,6 +102,18 @@ export const NotificationsBell: React.FC = () => {
                 {!n.isRead && <span className="w-2 h-2 rounded-full bg-secondary mt-1.5 shrink-0" aria-label="غير مقروء" />}
               </DropdownMenuItem>
             ))
+          )}
+          {items.length > 0 && (
+            <button
+              type="button"
+              className="w-full py-2 text-[11px] font-semibold text-secondary hover:underline border-t border-outline-variant/30"
+              onClick={() => {
+                setOpen(false);
+                navigate('/notifications');
+              }}
+            >
+              عرض كل الإشعارات
+            </button>
           )}
           {feed.hasNextPage && (
             <button

@@ -11,6 +11,14 @@ import { WalletPage } from '../../features/wallet/WalletPage';
 import { StaffPage } from '../../features/staff/StaffPage';
 import { CommissionsPage } from '../../features/commissions/CommissionsPage';
 import { ReportsPage } from '../../features/reports/ReportsPage';
+import { TripDetailPage } from '../../features/trips/TripDetailPage';
+import { TopUpDetailPage } from '../../features/wallet/TopUpDetailPage';
+import { LedgerEntryDetailPage } from '../../features/wallet/LedgerEntryDetailPage';
+import { CommissionDetailPage } from '../../features/commissions/CommissionDetailPage';
+import { StaffDetailPage } from '../../features/staff/StaffDetailPage';
+import { NotificationsPage } from '../../features/notifications/NotificationsPage';
+import { NotificationDetailPage } from '../../features/notifications/NotificationDetailPage';
+import { ProfilePage } from '../../features/profile/ProfilePage';
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -24,12 +32,21 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/home" replace /> },
       { path: 'home', element: <HomePage /> },
-      // feature routes are added below by feature (booking, bookings, wallet, staff, commissions, reports)
+      // Every entity has its own detail page (list → /entity/:id), with breadcrumbs and its actions.
       // wallet + staff + commissions + reports
       { path: 'wallet', element: <WalletPage /> },
+      { path: 'wallet/top-ups/:intentId', element: <TopUpDetailPage /> },
+      { path: 'wallet/ledger/:entryId', element: <LedgerEntryDetailPage /> },
       { path: 'staff', element: <StaffPage /> },
+      { path: 'staff/:employeeId', element: <StaffDetailPage /> },
       { path: 'commissions', element: <CommissionsPage /> },
+      { path: 'commissions/booking/:bookingId', element: <CommissionDetailPage /> },
+      { path: 'commissions/:accrualId', element: <CommissionDetailPage /> },
       { path: 'reports', element: <ReportsPage /> },
+      { path: 'notifications', element: <NotificationsPage /> },
+      { path: 'notifications/:id', element: <NotificationDetailPage /> },
+      { path: 'profile', element: <ProfilePage /> },
+      { path: 'trips/:tripId', element: <TripDetailPage /> },
       // booking + bookings
       { path: 'booking/new', element: <BookingFlowPage /> },
       { path: 'bookings', element: <BookingsListPage /> },

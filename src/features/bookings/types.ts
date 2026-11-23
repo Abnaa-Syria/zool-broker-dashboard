@@ -19,6 +19,15 @@ export type BookingTicket = {
   qrPayload: string | null;
 };
 
+export type BookingRefund = {
+  id: string;
+  amountMinor: number;
+  status: string;
+  reason: string | null;
+  createdAt: string;
+  processedAt: string | null;
+};
+
 export type Booking = {
   id: string;
   status: BookingStatus;
@@ -27,6 +36,7 @@ export type Booking = {
   paymentMethod: string | null;
   paymentStatus: string | null;
   officeId: string | null;
+  office?: { id: string; code: string; name: string } | null;
   employee: { id: string; displayName: string } | null;
   trip: {
     id: string;
@@ -46,8 +56,15 @@ export type Booking = {
   replacedByBookingId?: string | null;
   /** D-CHG-01: on a booking created by a trip change, the old booking */
   replacesBookingId?: string | null;
+  /** D-CHG-01: number of seat / trip changes made on this booking (chain) */
+  changeCount?: number;
+  /** D-RT-01: both legs of a round trip share a group id */
+  groupId?: string | null;
+  leg?: 'OUTBOUND' | 'RETURN' | (string & {}) | null;
+  /** Refund records of the booking (customer-side cancellations / change differences); broker cancels refund the wallet directly. */
+  refunds?: BookingRefund[];
   createdAt: string;
-  passengers: Array<{ id: string; fullName: string; phone: string | null; idNumber: string | null }>;
+  passengers: Array<{ id: string; fullName: string; phone: string | null; idNumber: string | null; gender?: 'MALE' | 'FEMALE' | null }>;
   tickets: BookingTicket[];
 };
 

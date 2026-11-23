@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { api, type PageMeta } from '../../lib/api/client';
+import { findInPages, SCAN_PAGE_SIZE } from '../../lib/api/findInPages';
 import { markReadLocally } from './logic';
 import type { AppNotification } from './types';
 
@@ -38,9 +39,36 @@ export function useMarkRead() {
         old ? { ...old, pages: old.pages.map((p) => ({ ...p, data: markReadLocally(p.data, id) })) } : old,
       );
     },
-    onSuccess: (unread) => {
+    onSuccess: (unread, id) => {
       qc.setQueryData(['broker-notifications-unread'], unread);
       void qc.invalidateQueries({ queryKey: ['broker-notifications'] });
+      if (id === 'all') void qc.invalidateQueries({ queryKey: ['broker-notification'] });
+      else qc.setQueryData<AppNotification | null>(['broker-notification', id], (n) => (n ? markReadLocally([n], id)[0]! : n));
     },
+  });
+}
+
+/**
+ * One notification for /notifications/:id. The API has no GET-by-id: use the loaded feed when it
+ * holds the item, otherwise scan the feed pages.
+ */
+export function useNotification(id: string | undefined) {
+  const qc = useQueryClient();
+  const cached = qc
+    .getQueryData<InfiniteData<{ data: AppNotification[] }>>(['broker-notifications'])
+    ?.pages.flatMap((p) => p.data)
+    .find((n) => n.id === id);
+  return useQuery({
+    queryKey: ['broker-notification', id],
+    enabled: Boolean(id),
+    initialData: cached,
+    queryFn: ({ signal }) =>
+      findInPages(
+        (page) =>
+          api
+            .get<AppNotification[]>('/broker/notifications', { page, pageSize: SCAN_PAGE_SIZE }, signal)
+            .then((r) => ({ items: r.data, totalPages: r.meta?.totalPages ?? 1 })),
+        (n) => n.id === id,
+      ),
   });
 }

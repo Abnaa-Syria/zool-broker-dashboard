@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { DetailCrumbs, DetailLink, Field, Row } from '../../components/shared/DetailParts';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -11,17 +12,35 @@ import { ApiError } from '../../lib/api/client';
 import { errorMessage } from '../../lib/api/errors';
 import { formatDateTime } from '../../lib/dates';
 import { formatSdg } from '../../lib/money';
+import { cn } from '../../lib/utils';
 import { useAuth } from '../auth/auth-context';
+import { useBookingLedgerEntries } from '../wallet/api';
+import { ledgerTypeLabel, signedAmountMinor } from '../wallet/logic';
 import { useBooking, useCancelBooking } from './api';
 import { BookingTickets } from './BookingTickets';
 import { canChangeBooking } from './change';
 import { ChangeSeatModal } from './ChangeSeatModal';
-import { boardingStatusLabel, bookingReference, routeLabel, bookingStatusLabel, commissionStatusLabel } from './labels';
+import {
+  boardingStatusLabel,
+  bookingReference,
+  bookingStatusLabel,
+  channelLabel,
+  commissionStatusLabel,
+  genderLabel,
+  legLabel,
+  paymentMethodLabel,
+  paymentStatusLabel,
+  refundReasonLabel,
+  refundStatusLabel,
+  routeLabel,
+} from './labels';
 import type { Booking, CancelResult } from './types';
 
 /**
- * GET /broker/bookings/:id — details, cancel (refund to wallet), seat / trip change (D-CHG-01),
- * tickets (thermal print with the signed QR + PDF) and boarding status.
+ * GET /broker/bookings/:id — trip, passengers, tickets (thermal print with the signed QR + PDF) and
+ * boarding status, payment and its wallet movements, commission, change history (D-CHG-01) and
+ * round-trip leg (D-RT-01). Actions: cancel (refund to wallet — the API has no booking delete),
+ * change seat, change trip.
  */
 export const BookingDetailPage: React.FC = () => {
   const { id } = useParams();
@@ -34,6 +53,7 @@ export const BookingDetailPage: React.FC = () => {
   const [cancelled, setCancelled] = React.useState<CancelResult | null>(null);
   const [seatOpen, setSeatOpen] = React.useState(false);
   const [seatChanged, setSeatChanged] = React.useState<string | null>(null);
+  const ledger = useBookingLedgerEntries(query.data?.id, query.data?.createdAt);
 
   if (query.isLoading) {
     return (
@@ -48,7 +68,7 @@ export const BookingDetailPage: React.FC = () => {
     const notFound = query.error instanceof ApiError && query.error.code === 'NOT_FOUND';
     return (
       <div className="space-y-space-md">
-        <BackLink />
+        <DetailCrumbs items={[{ label: 'الحجوزات والتذاكر', path: '/bookings' }, { label: 'حجز' }]} />
         <ErrorState
           title={notFound ? 'الحجز غير موجود' : 'تعذّر تحميل الحجز'}
           message={notFound ? 'قد يكون الحجز لموظف آخر أو غير تابع لمكتبك.' : errorMessage(query.error)}
@@ -63,14 +83,23 @@ export const BookingDetailPage: React.FC = () => {
   const canBook = can('broker.book');
   const canCancel = canBook && b.status === 'CONFIRMED' && (isManager || b.employee?.id === employee?.id);
   const canChange = canChangeBooking(b, canBook);
+  const wholeOffice = isManager || can('broker.reports.view');
+  const leg = legLabel(b.leg);
 
   return (
     <div className="flex flex-col gap-space-lg pb-space-xl">
-      <BackLink />
+      <DetailCrumbs items={[{ label: 'الحجوزات والتذاكر', path: '/bookings' }, { label: `حجز ${bookingReference(b)}` }]} />
       <PageHeader
         title={`حجز ${bookingReference(b)}`}
         subtitle={`${b.trip.company.name} • ${routeLabel(b.trip.origin, b.trip.destination)}`}
-        badge={<Badge variant={status.variant} dot>{status.label}</Badge>}
+        badge={
+          <div className="flex gap-1">
+            <Badge variant={status.variant} dot>
+              {status.label}
+            </Badge>
+            {leg && <Badge variant="info">{leg}</Badge>}
+          </div>
+        }
         actions={
           canCancel || canChange ? (
             <div className="flex flex-wrap gap-2">
@@ -127,28 +156,150 @@ export const BookingDetailPage: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-space-md">
         <Card className="lg:col-span-2 space-y-space-sm">
-          <h2 className="font-bold">الرحلة</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-bold">الرحلة</h2>
+            <DetailLink to={`/trips/${b.trip.id}`} className="text-sm">
+              تفاصيل الرحلة والمقاعد
+            </DetailLink>
+          </div>
           <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-space-lg gap-y-3 text-sm">
-            <Item label="شركة النقل" value={b.trip.company.name} />
-            <Item label="خط الرحلة" value={routeLabel(b.trip.origin, b.trip.destination)} />
-            <Item label="موعد المغادرة" value={formatDateTime(b.trip.departureAt)} />
-            <Item label="المقاعد" value={b.tickets.map((t) => t.seatLabel ?? '—').join('، ')} />
-            <Item label="الموظف" value={b.employee?.displayName ?? '—'} />
-            <Item label="تاريخ التأكيد" value={formatDateTime(b.confirmedAt ?? b.createdAt)} />
-            {b.status === 'CANCELLED' && <Item label="تاريخ الإلغاء" value={formatDateTime(b.cancelledAt)} />}
-            {b.cancelReason && <Item label="سبب الإلغاء" value={b.cancelReason} />}
+            <Field label="شركة النقل">{b.trip.company.name}</Field>
+            <Field label="خط الرحلة">{routeLabel(b.trip.origin, b.trip.destination)}</Field>
+            <Field label="موعد المغادرة">{formatDateTime(b.trip.departureAt)}</Field>
+            <Field label="المقاعد">{b.tickets.map((t) => t.seatLabel ?? '—').join('، ')}</Field>
+            <Field label="الموظف">
+              {b.employee ? (
+                can('broker.staff.manage') ? (
+                  <DetailLink to={`/staff/${b.employee.id}`}>{b.employee.displayName}</DetailLink>
+                ) : (
+                  b.employee.displayName
+                )
+              ) : (
+                '—'
+              )}
+            </Field>
+            <Field label="المكتب">{b.office ? `${b.office.name} (${b.office.code})` : '—'}</Field>
+            <Field label="تاريخ التأكيد">{formatDateTime(b.confirmedAt ?? b.createdAt)}</Field>
+            <Field label="تاريخ الإنشاء">{formatDateTime(b.createdAt)}</Field>
+            {b.status === 'CANCELLED' && <Field label="تاريخ الإلغاء">{formatDateTime(b.cancelledAt)}</Field>}
+            {b.cancelReason && <Field label="سبب الإلغاء">{b.cancelReason}</Field>}
           </dl>
         </Card>
         <Card className="space-y-space-sm">
-          <h2 className="font-bold">المبالغ</h2>
+          <h2 className="font-bold">المبالغ والعمولة</h2>
           <dl className="space-y-3 text-sm">
-            <Row label="إجمالي التذاكر (خُصم من المحفظة)" value={formatSdg(b.totalAmountMinor)} strong />
-            <Row label="العمولة المكتسبة" value={formatSdg(b.commissionAmountMinor)} />
-            <Row label="حالة العمولة" value={commissionStatusLabel(b.commissionStatus)} />
+            <Row label="إجمالي التذاكر (خُصم من المحفظة)" strong>
+              {formatSdg(b.totalAmountMinor)}
+            </Row>
+            <Row label="العمولة المكتسبة">{formatSdg(b.commissionAmountMinor)}</Row>
+            <Row label="حالة العمولة">{commissionStatusLabel(b.commissionStatus)}</Row>
           </dl>
           {b.status === 'CANCELLED' && <p className="text-xs text-on-surface-variant">أُعيد إجمالي التذاكر إلى محفظة المكتب عند الإلغاء.</p>}
+          {can('broker.reports.view') && b.commissionStatus && (
+            <DetailLink to={`/commissions/booking/${b.id}`} className="text-sm">
+              سجل العمولة
+            </DetailLink>
+          )}
         </Card>
       </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-space-md">
+        <Card className="space-y-space-sm">
+          <h2 className="font-bold">الدفع</h2>
+          <dl className="space-y-3 text-sm">
+            <Row label="القناة">{channelLabel(b.channel)}</Row>
+            <Row label="طريقة الدفع">{paymentMethodLabel(b.paymentMethod)}</Row>
+            <Row label="حالة الدفع">{paymentStatusLabel(b.paymentStatus)}</Row>
+          </dl>
+          <div className="pt-2 border-t border-outline-variant/30 space-y-2">
+            <h3 className="text-xs font-bold text-on-surface-variant">الاستردادات</h3>
+            {(b.refunds ?? []).length === 0 ? (
+              <p className="text-xs text-on-surface-variant">
+                لا توجد سجلات استرداد.{b.status === 'CANCELLED' ? ' استرداد إلغاء المكتب يُعاد مباشرة إلى المحفظة (انظر حركات المحفظة).' : ''}
+              </p>
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {(b.refunds ?? []).map((r) => {
+                  const st = refundStatusLabel(r.status);
+                  return (
+                    <li key={r.id} className="flex flex-wrap items-center justify-between gap-1">
+                      <span className="tabular-nums font-semibold">{formatSdg(r.amountMinor)}</span>
+                      <Badge size="sm" variant={st.variant}>
+                        {st.label}
+                      </Badge>
+                      <span className="basis-full text-xs text-on-surface-variant">
+                        {refundReasonLabel(r.reason)} • {formatDateTime(r.createdAt)}
+                        {r.processedAt ? ` • نُفّذ ${formatDateTime(r.processedAt)}` : ''}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </Card>
+        <Card className="lg:col-span-2 space-y-space-sm">
+          <h2 className="font-bold">حركات المحفظة لهذا الحجز</h2>
+          {ledger.isLoading ? (
+            <p className="text-sm text-on-surface-variant">جارٍ التحميل…</p>
+          ) : ledger.isError ? (
+            <p className="text-sm text-on-surface-variant">{errorMessage(ledger.error, 'تعذّر تحميل حركات المحفظة.')}</p>
+          ) : (ledger.data ?? []).length === 0 ? (
+            <p className="text-sm text-on-surface-variant">لا توجد حركات محفظة مسجلة لهذا الحجز.</p>
+          ) : (
+            <ul className="divide-y divide-outline-variant/30 text-sm">
+              {(ledger.data ?? []).map((e) => {
+                const signed = signedAmountMinor(e);
+                return (
+                  <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                    <Link to={`/wallet/ledger/${e.id}`} state={{ entry: e }} className="text-secondary hover:underline">
+                      {ledgerTypeLabel(e.type)}
+                    </Link>
+                    <span className="text-xs text-on-surface-variant">{formatDateTime(e.createdAt)}</span>
+                    <span className={cn('tabular-nums font-semibold', signed < 0 ? 'text-error' : 'text-[#15803D]')} dir="ltr">
+                      {signed < 0 ? '−' : '+'}
+                      {formatSdg(Math.abs(signed))}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+      </div>
+
+      <Card className="space-y-space-sm">
+        <h2 className="font-bold">سجل التعديلات</h2>
+        <ul className="space-y-2 text-sm">
+          <li>
+            تأكيد الحجز: <strong>{formatDateTime(b.confirmedAt ?? b.createdAt)}</strong>
+          </li>
+          {b.replacesBookingId && (
+            <li>
+              صدر هذا الحجز بتعديل رحلة <DetailLink to={`/bookings/${b.replacesBookingId}`}>الحجز السابق</DetailLink>.
+            </li>
+          )}
+          {b.replacedByBookingId && (
+            <li>
+              نُقل هذا الحجز إلى رحلة أخرى في <DetailLink to={`/bookings/${b.replacedByBookingId}`}>الحجز الجديد</DetailLink>.
+            </li>
+          )}
+          <li>
+            عدد التعديلات (تغيير مقعد أو رحلة): <strong className="tabular-nums">{b.changeCount ?? 0}</strong>
+          </li>
+          {b.status === 'CANCELLED' && (
+            <li>
+              الإلغاء: <strong>{formatDateTime(b.cancelledAt)}</strong>
+              {b.cancelReason ? ` — ${b.cancelReason}` : ''}
+            </li>
+          )}
+          {leg && (
+            <li>
+              {leg} ضمن حجز ذهاب وعودة{wholeOffice ? '؛ الرحلة الأخرى تظهر في قائمة الحجوزات باسم المسافر نفسه' : ''}.
+            </li>
+          )}
+        </ul>
+      </Card>
 
       <section className="space-y-space-sm">
         <h2 className="font-bold">المسافرون ({b.passengers.length})</h2>
@@ -163,6 +314,12 @@ export const BookingDetailPage: React.FC = () => {
                   <div className="font-semibold truncate">{p.fullName}</div>
                   <div className="text-xs text-on-surface-variant" dir="ltr">{p.phone ?? '—'}</div>
                   {p.idNumber && <div className="text-xs text-on-surface-variant">هوية: {p.idNumber}</div>}
+                  {genderLabel(p.gender) && <div className="text-xs text-on-surface-variant">{genderLabel(p.gender)}</div>}
+                  {ticket && (
+                    <div className="text-[11px] font-mono text-on-surface-variant" dir="ltr">
+                      {ticket.ticketNumber}
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   {seat && <Badge variant="info">مقعد {seat}</Badge>}
@@ -204,31 +361,6 @@ export const BookingDetailPage: React.FC = () => {
     </div>
   );
 };
-
-const BackLink = () => (
-  <Link to="/bookings" className="inline-flex items-center gap-1 text-sm text-secondary hover:underline self-start">
-    <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-    الحجوزات
-  </Link>
-);
-
-function Item({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-xs text-on-surface-variant">{label}</dt>
-      <dd className="font-semibold mt-0.5">{value}</dd>
-    </div>
-  );
-}
-
-function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <dt className="text-on-surface-variant">{label}</dt>
-      <dd className={strong ? 'font-bold tabular-nums' : 'tabular-nums'}>{value}</dd>
-    </div>
-  );
-}
 
 const CancelBookingModal: React.FC<{
   booking: Booking;

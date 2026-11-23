@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import { SearchInput } from '../../components/ui/Input';
 import { useAuth } from '../../features/auth/auth-context';
@@ -26,6 +27,10 @@ export const Topbar: React.FC<TopbarProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = React.useState('');
   const { employee, logout } = useAuth();
+  const [today] = React.useState(() =>
+    new Intl.DateTimeFormat('ar-SD', { timeZone: 'Africa/Khartoum', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date()),
+  );
+  const navigate = useNavigate();
   const initials = (employee?.displayName ?? '?')
     .split(/\s+/)
     .slice(0, 2)
@@ -88,7 +93,7 @@ export const Topbar: React.FC<TopbarProps> = ({
         {/* Date Badge */}
         <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface text-xs font-semibold shadow-xs border border-outline-variant/30">
           <span className="material-symbols-outlined text-secondary text-[16px]">calendar_today</span>
-          <span>اليوم: 24 أكتوبر 2024</span>
+          <span>اليوم: {today}</span>
         </div>
 
         <NotificationsBell />
@@ -116,6 +121,14 @@ export const Topbar: React.FC<TopbarProps> = ({
                 {phone ?? employee?.office.code}
               </span>
             </div>
+            <DropdownMenuItem onClick={() => navigate('/profile')}>
+              <span className="material-symbols-outlined text-[16px]">account_circle</span>
+              <span>حسابي</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/notifications')}>
+              <span className="material-symbols-outlined text-[16px]">notifications</span>
+              <span>الإشعارات</span>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem destructive onClick={() => void logout()}>
               <span className="material-symbols-outlined text-[16px]">logout</span>

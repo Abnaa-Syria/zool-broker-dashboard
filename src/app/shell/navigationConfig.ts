@@ -31,6 +31,7 @@ export const navigationConfig: NavSection[] = [
       { name: 'العمولات', path: '/commissions', icon: 'currency_exchange', permission: 'broker.reports.view', data: 'live' },
       { name: 'التقارير', path: '/reports', icon: 'bar_chart', permission: 'broker.reports.view', data: 'live' },
       { name: 'الموظفون', path: '/staff', icon: 'group', permission: 'broker.staff.manage', data: 'live' },
+      { name: 'الإشعارات', path: '/notifications', icon: 'notifications', data: 'live' },
     ],
   },
 ];

@@ -29,7 +29,9 @@ export const SeatMap: React.FC<{
   onToggle: (seat: TripSeat) => void;
   highlight?: readonly string[];
   highlightLabel?: string;
-}> = ({ seats, layout, selected, onToggle, highlight = [], highlightLabel }) => {
+  /** View only (trip detail page): seats are not clickable. */
+  readOnly?: boolean;
+}> = ({ seats, layout, selected, onToggle, highlight = [], highlightLabel, readOnly = false }) => {
   const anyWomen = seats.some((s) => s.isWomenOnly);
 
   const renderSeat = (seat: TripSeat) => {
@@ -39,13 +41,14 @@ export const SeatMap: React.FC<{
       <button
         key={seat.id}
         type="button"
-        disabled={view === 'taken'}
-        aria-pressed={view === 'selected'}
+        disabled={readOnly || view === 'taken'}
+        aria-pressed={readOnly ? undefined : view === 'selected'}
         aria-label={`مقعد ${seat.label}: ${current && highlightLabel ? highlightLabel : VIEW_LABEL[view]}${seat.isWomenOnly ? '، مخصص للسيدات' : ''}`}
         onClick={() => onToggle(seat)}
         className={cn(
           'relative h-11 min-w-11 px-2 rounded-lg border text-sm font-mono font-bold transition-colors',
           VIEW_CLASS[view],
+          readOnly && view !== 'taken' && 'cursor-default hover:border-outline-variant hover:bg-surface-container-lowest',
           current && 'bg-[#DBEAFE] text-[#1D4ED8] border-[#93C5FD] no-underline',
           seat.isWomenOnly && view !== 'selected' && 'ring-2 ring-pink-300',
         )}
@@ -59,7 +62,7 @@ export const SeatMap: React.FC<{
   return (
     <>
       <div className="flex flex-wrap items-center gap-3 text-xs text-on-surface-variant">
-        {(['free', 'selected', 'mine', 'taken'] as SeatView[]).map((v) => (
+        {(readOnly ? (['free', 'mine', 'taken'] as SeatView[]) : (['free', 'selected', 'mine', 'taken'] as SeatView[])).map((v) => (
           <span key={v} className="flex items-center gap-1">
             <span className={cn('inline-block w-4 h-4 rounded border', VIEW_CLASS[v])} /> {VIEW_LABEL[v]}
           </span>

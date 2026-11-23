@@ -1,24 +1,25 @@
 import * as React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { EmptyState, ErrorState } from '../../components/ui/EmptyState';
-import { Modal, ModalContent, ModalDescription, ModalFooter, ModalHeader, ModalTitle } from '../../components/ui/Modal';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table';
 import { errorMessage } from '../../lib/api/errors';
 import { formatDateTime } from '../../lib/dates';
 import { useAuth } from '../auth/auth-context';
-import { useStaff, useUpdateStaff, type StaffMember } from './api';
-import { FLAG_FIELDS, selfEditBlock } from './logic';
+import { useStaff, type StaffMember } from './api';
+import { FLAG_FIELDS, roleLabel, statusNotice } from './logic';
 import { StaffFormModal } from './StaffFormModal';
+import { StaffStatusModal } from './StaffStatusModal';
 
-/** Office staff (`broker.staff.manage`): list, add clerks, edit flags, suspend / reactivate. */
+/** Office staff (`broker.staff.manage`): list, add clerks, edit flags, suspend / reactivate; each row opens /staff/:id. */
 export const StaffPage: React.FC = () => {
   const { can, employee, refreshProfile } = useAuth();
   const allowed = can('broker.staff.manage');
   const staff = useStaff(allowed);
-  const update = useUpdateStaff();
+  const navigate = useNavigate();
   const [form, setForm] = React.useState<{ member: StaffMember | null } | null>(null);
   const [statusTarget, setStatusTarget] = React.useState<StaffMember | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
@@ -31,22 +32,6 @@ export const StaffPage: React.FC = () => {
     setForm(null);
     setNotice(`تم حفظ بيانات ${saved.displayName}.`);
     if (wasSelf) await refreshProfile().catch(() => undefined);
-  };
-
-  const nextStatus = statusTarget?.status === 'SUSPENDED' ? 'ACTIVE' : 'SUSPENDED';
-  const statusBlock = statusTarget ? selfEditBlock(statusTarget.id === employee?.id, { status: nextStatus }) : null;
-
-  const confirmStatus = () => {
-    if (!statusTarget || statusBlock) return;
-    update.mutate(
-      { id: statusTarget.id, patch: { status: nextStatus } },
-      {
-        onSuccess: (saved) => {
-          setStatusTarget(null);
-          setNotice(saved.status === 'SUSPENDED' ? `تم إيقاف ${saved.displayName} وإنهاء جلساته.` : `تمت إعادة تفعيل ${saved.displayName}.`);
-        },
-      },
-    );
   };
 
   return (
@@ -97,9 +82,11 @@ export const StaffPage: React.FC = () => {
             {staff.data!.map((m) => {
               const isSelf = m.id === employee?.id;
               return (
-                <TableRow key={m.id}>
+                <TableRow key={m.id} className="cursor-pointer" onClick={() => navigate(`/staff/${m.id}`)}>
                   <TableCell className="font-semibold">
-                    {m.displayName}
+                    <Link to={`/staff/${m.id}`} className="text-secondary hover:underline" onClick={(e) => e.stopPropagation()}>
+                      {m.displayName}
+                    </Link>
                     {isSelf && <span className="text-xs font-normal text-on-surface-variant ms-1">(أنت)</span>}
                   </TableCell>
                   <TableCell className="text-xs tabular-nums" dir="ltr">
@@ -107,7 +94,7 @@ export const StaffPage: React.FC = () => {
                   </TableCell>
                   <TableCell>
                     <Badge size="sm" variant={m.role === 'MANAGER' ? 'secondary' : 'neutral'}>
-                      {m.role === 'MANAGER' ? 'مدير المكتب' : 'موظف حجز'}
+                      {roleLabel(m.role)}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -126,7 +113,7 @@ export const StaffPage: React.FC = () => {
                     </div>
                   </TableCell>
                   <TableCell className="text-xs whitespace-nowrap">{formatDateTime(m.lastLoginAt)}</TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-1">
                       <Button
                         size="sm"
@@ -145,7 +132,7 @@ export const StaffPage: React.FC = () => {
                           variant={m.status === 'ACTIVE' ? 'ghost' : 'outline'}
                           icon={m.status === 'ACTIVE' ? 'block' : 'check_circle'}
                           onClick={() => {
-                            update.reset();
+                            setNotice(null);
                             setStatusTarget(m);
                           }}
                         >
@@ -163,31 +150,17 @@ export const StaffPage: React.FC = () => {
 
       {form && <StaffFormModal member={form.member} selfId={employee?.id} onClose={() => setForm(null)} onSaved={afterSave} />}
 
-      <Modal open={statusTarget !== null} onOpenChange={(o) => !o && setStatusTarget(null)}>
-        <ModalContent size="sm">
-          <ModalHeader>
-            <ModalTitle>{nextStatus === 'SUSPENDED' ? 'إيقاف الموظف' : 'إعادة تفعيل الموظف'}</ModalTitle>
-            <ModalDescription>
-              {nextStatus === 'SUSPENDED'
-                ? `سيتم إيقاف ${statusTarget?.displayName ?? ''} وتسجيل خروجه من جميع الأجهزة. يمكنك إعادة تفعيله لاحقًا.`
-                : `سيتمكن ${statusTarget?.displayName ?? ''} من تسجيل الدخول مجددًا بصلاحياته الحالية.`}
-            </ModalDescription>
-          </ModalHeader>
-          {(statusBlock || update.isError) && (
-            <p role="alert" className="text-xs text-error">
-              {statusBlock ?? errorMessage(update.error)}
-            </p>
-          )}
-          <ModalFooter>
-            <Button variant="ghost" onClick={() => setStatusTarget(null)}>
-              إلغاء
-            </Button>
-            <Button variant={nextStatus === 'SUSPENDED' ? 'danger' : 'secondary'} isLoading={update.isPending} disabled={Boolean(statusBlock)} onClick={confirmStatus}>
-              {nextStatus === 'SUSPENDED' ? 'إيقاف' : 'إعادة تفعيل'}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      {statusTarget && (
+        <StaffStatusModal
+          member={statusTarget}
+          selfId={employee?.id}
+          onClose={() => setStatusTarget(null)}
+          onDone={(saved) => {
+            setStatusTarget(null);
+            setNotice(statusNotice(saved));
+          }}
+        />
+      )}
     </div>
   );
 };

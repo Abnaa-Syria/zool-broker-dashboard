@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Link } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Card, MetricCard } from '../../components/ui/Card';
 import { EmptyState, ErrorState } from '../../components/ui/EmptyState';
@@ -13,7 +14,7 @@ import { useAuth } from '../auth/auth-context';
 import { useReportByCarrier, useReportByEmployee, useReportSummary, useWalletActivity } from './api';
 import { RANGE_PRESETS, presetRange, validateRange, type DateRange, type RangePresetKey } from './range';
 
-type SalesTableRow = { key: string; label: string; ticketsSold: number; grossSalesMinor: number; commissionAccruedMinor: number };
+type SalesTableRow = { key: string; label: string; href?: string; ticketsSold: number; grossSalesMinor: number; commissionAccruedMinor: number };
 
 const BAR_COLOR = '#226a4b'; // theme `secondary`
 
@@ -69,7 +70,15 @@ const SalesBreakdown: React.FC<{
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.key} className="border-t border-surface-container">
-                    <td className="py-2 px-2">{r.label}</td>
+                    <td className="py-2 px-2">
+                      {r.href ? (
+                        <Link to={r.href} className="text-secondary hover:underline">
+                          {r.label}
+                        </Link>
+                      ) : (
+                        r.label
+                      )}
+                    </td>
                     <td className="py-2 px-2 tabular-nums">{r.ticketsSold.toLocaleString('en-US')}</td>
                     <td className="py-2 px-2 tabular-nums">{formatSdg(r.grossSalesMinor)}</td>
                     <td className="py-2 px-2 tabular-nums">{formatSdg(r.commissionAccruedMinor)}</td>
@@ -88,6 +97,7 @@ const SalesBreakdown: React.FC<{
 export const ReportsPage: React.FC = () => {
   const { can } = useAuth();
   const allowed = can('broker.reports.view');
+  const staffPages = can('broker.staff.manage');
   const [preset, setPreset] = React.useState<RangePresetKey>('7days');
   const [custom, setCustom] = React.useState<DateRange>(() => presetRange('7days'));
   const range = React.useMemo(() => (preset === 'custom' ? custom : presetRange(preset)), [preset, custom]);
@@ -175,7 +185,12 @@ export const ReportsPage: React.FC = () => {
             <SalesBreakdown
               title="المبيعات حسب الموظف"
               firstColumn="الموظف"
-              rows={byEmployee.data?.items.map((r) => ({ ...r, key: r.employeeId, label: r.displayName }))}
+              rows={byEmployee.data?.items.map((r) => ({
+                ...r,
+                key: r.employeeId,
+                label: r.displayName,
+                href: staffPages ? `/staff/${r.employeeId}` : `/bookings?employee=${encodeURIComponent(r.employeeId)}`,
+              }))}
               isLoading={byEmployee.isLoading}
               error={byEmployee.error}
               onRetry={() => byEmployee.refetch()}
@@ -183,7 +198,7 @@ export const ReportsPage: React.FC = () => {
             <SalesBreakdown
               title="المبيعات حسب شركة النقل"
               firstColumn="شركة النقل"
-              rows={byCarrier.data?.items.map((r) => ({ ...r, key: r.companyId, label: r.name }))}
+              rows={byCarrier.data?.items.map((r) => ({ ...r, key: r.companyId, label: r.name, href: `/bookings?carrier=${encodeURIComponent(r.companyId)}` }))}
               isLoading={byCarrier.isLoading}
               error={byCarrier.error}
               onRetry={() => byCarrier.refetch()}

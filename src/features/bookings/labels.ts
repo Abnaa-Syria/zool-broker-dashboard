@@ -77,3 +77,88 @@ export function boardingStatusLabel(status: string | null | undefined): { label:
 export function ticketQrValue(ticketNumber: string, ...payloads: Array<string | null | undefined>): string {
   return payloads.find((p): p is string => typeof p === 'string' && p.length > 0) ?? ticketNumber;
 }
+
+export function channelLabel(channel: string | null | undefined): string {
+  switch (channel) {
+    case 'BROKER':
+      return 'مكتب الوكيل';
+    case 'DIRECT':
+      return 'تطبيق العميل';
+    default:
+      return channel ?? '—';
+  }
+}
+
+export function paymentMethodLabel(method: string | null | undefined): string {
+  switch (method) {
+    case 'WALLET':
+      return 'محفظة المكتب (رصيد مسبق)';
+    case 'ONLINE':
+      return 'دفع إلكتروني';
+    case 'CASH_ON_BOARD':
+      return 'نقدًا للسائق';
+    default:
+      return method ?? '—';
+  }
+}
+
+export function paymentStatusLabel(status: string | null | undefined): string {
+  switch (status) {
+    case 'PAID':
+      return 'مدفوع';
+    case 'PENDING':
+      return 'بانتظار الدفع';
+    case 'UNPAID_CASH':
+      return 'يُدفع نقدًا';
+    case 'PAID_CASH':
+      return 'مدفوع نقدًا';
+    case 'REFUNDED':
+      return 'مسترد';
+    case 'PARTIALLY_REFUNDED':
+      return 'مسترد جزئيًا';
+    default:
+      return status ?? '—';
+  }
+}
+
+export function refundStatusLabel(status: string): { label: string; variant: NonNullable<BadgeProps['variant']> } {
+  switch (status) {
+    case 'PENDING':
+      return { label: 'قيد المعالجة', variant: 'warning' };
+    case 'SUCCEEDED':
+      return { label: 'تم الاسترداد', variant: 'success' };
+    case 'FAILED':
+      return { label: 'فشل', variant: 'error' };
+    default:
+      return { label: status, variant: 'neutral' };
+  }
+}
+
+export function refundReasonLabel(reason: string | null): string {
+  switch (reason) {
+    case 'CHANGE_DIFFERENCE':
+      return 'فرق سعر تعديل الرحلة';
+    case 'CUSTOMER_CANCEL':
+      return 'إلغاء من العميل';
+    case 'CARRIER_CANCEL':
+      return 'إلغاء الرحلة من شركة النقل';
+    case 'ADMIN':
+      return 'استرداد من إدارة المنصة';
+    case null:
+      return '—';
+    default:
+      return reason;
+  }
+}
+
+export function genderLabel(gender: string | null | undefined): string | null {
+  if (gender === 'FEMALE') return 'أنثى';
+  if (gender === 'MALE') return 'ذكر';
+  return null;
+}
+
+export function legLabel(leg: string | null | undefined): string | null {
+  if (leg === 'OUTBOUND') return 'رحلة الذهاب';
+  if (leg === 'RETURN') return 'رحلة العودة';
+  return null;
+}

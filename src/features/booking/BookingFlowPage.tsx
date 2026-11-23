@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -44,10 +44,13 @@ const HOLD_EXPIRED_MESSAGE = errorMessage(new ApiError({ status: 409, code: 'HOL
 export const BookingFlowPage: React.FC = () => {
   const { can, employee } = useAuth();
   const qc = useQueryClient();
+  // "Book this trip" from a trip detail page (/trips/:id) starts at its seat map.
+  const preset = (useLocation().state as { trip?: BrokerTrip; search?: BookingSearch } | null) ?? null;
+  const presetTrip = preset?.trip && preset.search ? preset.trip : null;
 
-  const [step, setStep] = React.useState<FlowStep>('search');
-  const [search, setSearch] = React.useState<BookingSearch>(INITIAL_SEARCH);
-  const [trip, setTrip] = React.useState<BrokerTrip | null>(null);
+  const [step, setStep] = React.useState<FlowStep>(presetTrip ? 'seats' : 'search');
+  const [search, setSearch] = React.useState<BookingSearch>(presetTrip && preset?.search ? preset.search : INITIAL_SEARCH);
+  const [trip, setTrip] = React.useState<BrokerTrip | null>(presetTrip);
   const [returnTrip, setReturnTrip] = React.useState<BrokerTrip | null>(null);
   const [selected, setSelected] = React.useState<string[]>([]);
   const [returnSelected, setReturnSelected] = React.useState<string[]>([]);

@@ -7,24 +7,22 @@ export interface BreadcrumbItem {
   path?: string;
 }
 
+/** Broker panel path segments (detail pages pass explicit `items` with the entity name instead). */
 const routeLabelMap: Record<string, string> = {
-  overview: 'نظرة عامة',
-  tracking: 'التتبع المباشر',
-  bookings: 'الحجوزات والرحلات',
-  companies: 'شركات النقل',
-  brokers: 'مكاتب الوكلاء',
-  travelers: 'حسابات المسافرين',
-  financials: 'المالية والتسويات',
-  wallets: 'المحافظ والمعاملات المالية',
-  settlements: 'العمولات ودورات التسوية',
-  refunds: 'الإلغاءات والاسترداد',
-  queue: 'طابور الطلبات',
-  reports: 'التقارير المالية والإحصاءات',
-  admin: 'إدارة النظام',
-  team: 'فريق الإدارة',
-  roles: 'الأدوار والصلاحيات',
-  audit: 'سجل الأنشطة والتدقيق',
-  settings: 'الإعدادات العامة',
+  home: 'الرئيسية',
+  booking: 'الحجز',
+  new: 'حجز جديد',
+  bookings: 'الحجوزات والتذاكر',
+  change: 'تغيير الرحلة',
+  trips: 'الرحلات',
+  wallet: 'المحفظة والشحن',
+  'top-ups': 'طلبات الشحن',
+  ledger: 'حركات المحفظة',
+  commissions: 'العمولات',
+  reports: 'التقارير',
+  staff: 'الموظفون',
+  notifications: 'الإشعارات',
+  profile: 'حسابي',
 };
 
 export const Breadcrumbs: React.FC<{ items?: BreadcrumbItem[]; className?: string }> = ({
@@ -37,11 +35,12 @@ export const Breadcrumbs: React.FC<{ items?: BreadcrumbItem[]; className?: strin
     if (items && items.length > 0) return items;
 
     const segments = location.pathname.split('/').filter(Boolean);
-    const breadcrumbs: BreadcrumbItem[] = [{ label: 'الرئيسية والعمليات', path: '/overview' }];
+    const breadcrumbs: BreadcrumbItem[] = [{ label: 'الرئيسية', path: '/home' }];
 
     let currentPath = '';
     segments.forEach((seg, idx) => {
       currentPath += `/${seg}`;
+      if (seg === 'home') return;
       const label = routeLabelMap[seg] || seg;
       const isLast = idx === segments.length - 1;
       breadcrumbs.push({

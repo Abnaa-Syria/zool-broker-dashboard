@@ -78,3 +78,51 @@ export function validateReceipt(file: { size: number; type: string; name: string
   if (file.size === 0) return 'الملف فارغ.';
   return null;
 }
+
+/** Balance before a ledger entry (the API returns only the balance after it). */
+export function balanceBeforeMinor(entry: { direction: 'CREDIT' | 'DEBIT'; amountMinor: number; balanceAfterMinor: number }): number {
+  return entry.balanceAfterMinor - signedAmountMinor(entry);
+}
+
+export const LEDGER_REFERENCE_LABELS: Record<string, string> = {
+  top_up_intent: 'طلب شحن',
+  booking: 'حجز',
+  commission_settlement: 'تسوية عمولة',
+};
+
+/** Panel page of the record a ledger entry points to (null when the broker panel has no page for it). */
+export function ledgerReferencePath(entry: { referenceType: string | null; referenceId: string | null }): string | null {
+  if (!entry.referenceId) return null;
+  const id = encodeURIComponent(entry.referenceId);
+  if (entry.referenceType === 'booking') return `/bookings/${id}`;
+  if (entry.referenceType === 'top_up_intent') return `/wallet/top-ups/${id}`;
+  return null;
+}
+
+export const CONFIRMATION_PATH_LABELS: Record<string, string> = {
+  AUTOMATIC: 'تأكيد تلقائي من مزود الدفع',
+  MANUAL_FALLBACK: 'إيصال يدوي بمراجعة المنصة',
+};
+
+/** Ordered status history of a top-up request from its timestamps. */
+export function topUpTimeline(intent: {
+  status: string;
+  createdAt: string;
+  confirmedAt: string | null;
+  failedAt: string | null;
+  hasEvidence: boolean;
+}): Array<{ key: string; label: string; at: string | null; tone: 'done' | 'current' | 'error' }> {
+  const steps: Array<{ key: string; label: string; at: string | null; tone: 'done' | 'current' | 'error' }> = [
+    { key: 'created', label: 'إنشاء طلب الشحن', at: intent.createdAt, tone: 'done' },
+  ];
+  const evidence = { key: 'evidence', label: 'إرفاق إيصال للمراجعة', at: null, tone: intent.status === 'PENDING_REVIEW' ? 'current' : 'done' } as const;
+  const failed = { key: 'failed', label: 'رفض الطلب / فشل الدفع', at: intent.failedAt, tone: 'error' } as const;
+  // A FAILED request with a receipt was rejected after review; otherwise the failure came first and the receipt followed.
+  if (intent.status === 'FAILED' && intent.hasEvidence) steps.push(evidence);
+  if (intent.failedAt) steps.push(failed);
+  if (intent.hasEvidence && intent.status !== 'FAILED') steps.push(evidence);
+  if (intent.status === 'PENDING') steps.push({ key: 'pending', label: 'بانتظار تأكيد الدفع', at: null, tone: 'current' });
+  if (intent.status === 'PENDING_REVIEW') steps.push({ key: 'review', label: 'قيد مراجعة المنصة', at: null, tone: 'current' });
+  if (intent.status === 'CONFIRMED') steps.push({ key: 'confirmed', label: 'تأكيد الدفع وإضافة الرصيد', at: intent.confirmedAt, tone: 'done' });
+  return steps;
+}

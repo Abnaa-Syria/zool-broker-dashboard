@@ -113,6 +113,16 @@ export const ResultsStep: React.FC<{
                       {t.seatsFree > 0 ? `${t.seatsFree} مقعد متاح` : 'مكتملة'}
                     </div>
                   </div>
+                  <a
+                    href={`/trips/${t.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-semibold text-secondary hover:underline inline-flex items-center gap-0.5"
+                    title="يفتح صفحة الرحلة في تبويب جديد دون فقدان البحث"
+                  >
+                    التفاصيل
+                    <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                  </a>
                   <Button onClick={() => onPick(t)} disabled={!enough} title={enough ? undefined : 'المقاعد المتاحة أقل من عدد المسافرين'}>
                     اختيار المقاعد
                   </Button>
